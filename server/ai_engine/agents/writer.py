@@ -18,13 +18,18 @@ def run_writer(state: ResearchState) -> dict:
         temperature=0.3
     )
 
-    context = "\n\n".join([
-        f"Source [{r['title']}] ({r['url']}):\n{r['content']}"
-        for r in search_results
-    ])
+    # Smart context truncation to prevent 413 Request Entity Too Large errors
+    context_items = []
+    for r in search_results[:4]:
+        title = r.get("title", "Web Source")
+        url = r.get("url", "")
+        content_snippet = r.get("content", "")[:800] # Cap snippet at 800 characters
+        context_items.append(f"Source: [{title}]({url})\nSnippet: {content_snippet}")
+
+    context = "\n\n".join(context_items)
 
     prompt = f"""You are a professional Academic & Technical Research Writer.
-Write a comprehensive, structured research report in Markdown based on the provided search findings.
+Write a comprehensive, well-structured research report in Markdown based on the provided search findings.
 
 Research Topic: "{question}"
 Research Strategy: "{plan}"
@@ -38,7 +43,7 @@ Format Requirements:
 - ## Key Findings & Technical Insights
 - ## Detailed Analysis
 - ## Conclusion & Future Work
-- ## References (List URLs from web findings)
+- ## References (List source URLs)
 """
 
     try:
