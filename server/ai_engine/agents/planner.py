@@ -10,8 +10,9 @@ def run_planner(state: ResearchState) -> dict:
     if not api_key:
         return {"error": "GROQ_API_KEY not found in environment variables."}
 
+    model_name = os.getenv("GROQ_MODEL", "groq/compound")
     llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model=model_name,
         groq_api_key=api_key,
         temperature=0.2
     )
