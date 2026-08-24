@@ -3,6 +3,8 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAuth } from "../context/AuthContext";
+import AuthModal from "../components/AuthModal";
 import { 
   Sparkles, 
   Search, 
@@ -10,15 +12,18 @@ import {
   FileText, 
   Loader2, 
   CheckCircle2, 
-  Globe, 
-  BookOpen, 
   Zap, 
   Bot,
   Copy,
-  Check
+  Check,
+  User as UserIcon,
+  LogOut,
+  LogIn
 } from "lucide-react";
 
 export default function Home() {
+  const { user, logout } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState<"idle" | "planning" | "searching" | "writing" | "completed">("idle");
@@ -30,6 +35,12 @@ export default function Home() {
   const handleRunResearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
+
+    // Guard: Require Authentication before executing research
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
 
     setLoading(true);
     setReport("");
@@ -74,8 +85,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Auth Modal Component */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
@@ -89,11 +103,39 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
               FastAPI Engine Online
             </span>
+
+            {/* Auth Profile / Login Button */}
+            {user ? (
+              <div className="flex items-center space-x-3 bg-slate-800/80 border border-slate-700/80 rounded-xl px-3 py-1.5">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-xs">
+                  {user.fullName.charAt(0).toUpperCase()}
+                </div>
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs font-bold text-slate-200 leading-none">{user.fullName}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]">{user.email}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  title="Logout"
+                  className="p-1 text-slate-400 hover:text-rose-400 transition-colors ml-1"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-all shadow-md shadow-indigo-600/20"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In / Register
+              </button>
+            )}
           </div>
         </div>
       </header>
