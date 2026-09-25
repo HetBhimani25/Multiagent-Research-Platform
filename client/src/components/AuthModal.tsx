@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { X, Lock, Mail, User, Eye, EyeOff, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { X, Lock, Mail, User, Eye, EyeOff, Loader2, Sparkles, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!isLoginTab) {
+      if (!fullName.trim()) {
+        setError("Full Name is required.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters long.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -35,11 +52,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           setError(res.error || "Login failed");
         }
       } else {
-        if (!fullName.trim()) {
-          setError("Full Name is required.");
-          setLoading(false);
-          return;
-        }
         const res = await register(fullName, email, password);
         if (res.success) {
           onClose();
@@ -52,6 +64,23 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoLogin = async () => {
+    setEmail("demo@research.app");
+    setPassword("demo123456");
+    setError("");
+    setLoading(true);
+    const res = await register("Demo Researcher", "demo@research.app", "demo123456");
+    if (!res.success) {
+      // If demo user already exists, login
+      const loginRes = await login("demo@research.app", "demo123456");
+      if (loginRes.success) onClose();
+      else setError("Demo login failed.");
+    } else {
+      onClose();
+    }
+    setLoading(false);
   };
 
   return (
@@ -167,6 +196,23 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
           </div>
 
+          {!isLoginTab && (
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Confirm Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -182,6 +228,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             ) : (
               "Complete Account Setup"
             )}
+          </button>
+
+          {/* Quick Demo Access Button */}
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium transition-all flex items-center justify-center gap-2"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            Sign in as Quick Demo User
           </button>
         </form>
       </div>

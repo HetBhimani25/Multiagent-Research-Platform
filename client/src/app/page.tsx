@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+import UserProfileModal from "../components/UserProfileModal";
 import { 
   Sparkles, 
   Search, 
@@ -18,12 +19,14 @@ import {
   Check,
   User as UserIcon,
   LogOut,
-  LogIn
+  LogIn,
+  Settings
 } from "lucide-react";
 
 export default function Home() {
   const { user, logout } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState<"idle" | "planning" | "searching" | "writing" | "completed">("idle");
@@ -85,8 +88,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Auth Modal Component */}
+      {/* Auth Modal & Profile Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <UserProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
       {/* Top Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
@@ -111,18 +115,35 @@ export default function Home() {
 
             {/* Auth Profile / Login Button */}
             {user ? (
-              <div className="flex items-center space-x-3 bg-slate-800/80 border border-slate-700/80 rounded-xl px-3 py-1.5">
-                <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-xs">
-                  {user.fullName.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <p className="text-xs font-bold text-slate-200 leading-none">{user.fullName}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]">{user.email}</p>
-                </div>
+              <div className="flex items-center space-x-2 bg-slate-800/80 border border-slate-700/80 rounded-xl p-1.5 pl-2.5">
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+                  title="View Profile Settings"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold text-xs">
+                    {user.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="hidden sm:block">
+                    <p className="text-xs font-bold text-slate-200 leading-none">{user.fullName}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]">{user.email}</p>
+                  </div>
+                </button>
+
+                <div className="h-4 w-px bg-slate-700 mx-1"></div>
+
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  title="Account Settings"
+                  className="p-1 text-slate-400 hover:text-indigo-400 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+
                 <button
                   onClick={logout}
                   title="Logout"
-                  className="p-1 text-slate-400 hover:text-rose-400 transition-colors ml-1"
+                  className="p-1 text-slate-400 hover:text-rose-400 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User } = require('../db');
+const { verifyToken } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'my_super_secret_jwt_key_2026';
@@ -13,6 +14,10 @@ router.post('/register', async (req, res) => {
 
     if (!fullName || !email || !password) {
       return res.status(400).json({ error: 'Please provide full name, email, and password.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     // Check if email already exists
@@ -27,8 +32,8 @@ router.post('/register', async (req, res) => {
 
     // Create User
     const user = await User.create({
-      fullName,
-      email: email.toLowerCase(),
+      fullName: fullName.trim(),
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
     });
 
@@ -65,7 +70,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Find User
-    const user = await User.findOne({ where: { email: email.toLowerCase() } });
+    const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -100,20 +105,43 @@ router.post('/login', async (req, res) => {
 });
 
 // Get Current User Profile (Me)
-router.get('/me', async (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
+  return res.json({
+    status: 'success',
+    user: req.user,
+  });
+});
+
+// Update User Profile / Password
+router.post('/update-profile', verifyToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No authorization token provided.' });
-    }
+    const { fullName, currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.id);
 
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const user = await User.findByPk(decoded.id);
     if (!user) {
-      return res.status(404).json({ error: 'User session not found.' });
+      return res.status(404).json({ error: 'User not found.' });
     }
+
+    if (fullName) {
+      user.fullName = fullName.trim();
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required to set a new password.' });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Incorrect current password.' });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+    }
+
+    await user.save();
 
     return res.json({
       status: 'success',
@@ -125,7 +153,7 @@ router.get('/me', async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(401).json({ error: 'Invalid or expired authorization token.' });
+    return res.status(500).json({ error: 'Failed to update profile: ' + error.message });
   }
 });
 
