@@ -41,19 +41,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
-      });
-      const data = await res.json();
-      if (res.ok && data.status === "success") {
-        setUser(data.user);
-        setToken(authToken);
-      } else {
-        localStorage.removeItem("auth_token");
-        setUser(null);
-        setToken(null);
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.status === "success") {
+          setUser(data.user);
+          setToken(authToken);
+          return;
+        }
       }
-    } catch (err) {
-      console.error("Session verification failed:", err);
+
+      // If token invalid or gateway offline, reset session gracefully without throwing breaking overlay error
       localStorage.removeItem("auth_token");
+      setUser(null);
+      setToken(null);
+    } catch (err) {
+      localStorage.removeItem("auth_token");
+      setUser(null);
+      setToken(null);
     } finally {
       setLoading(false);
     }
@@ -65,7 +71,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      });
+      }).catch(() => null);
+
+      if (!res) {
+        return { success: false, error: "Node Gateway server is offline (port 4000)." };
+      }
+
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem("auth_token", data.token);
@@ -76,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, error: data.error || "Login failed" };
       }
     } catch (err: any) {
-      return { success: false, error: "Network error connecting to Gateway: " + err.message };
+      return { success: false, error: "Network error: " + err.message };
     }
   };
 
@@ -86,7 +97,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fullName, email, password }),
-      });
+      }).catch(() => null);
+
+      if (!res) {
+        return { success: false, error: "Node Gateway server is offline (port 4000)." };
+      }
+
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem("auth_token", data.token);
@@ -97,7 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: false, error: data.error || "Registration failed" };
       }
     } catch (err: any) {
-      return { success: false, error: "Network error connecting to Gateway: " + err.message };
+      return { success: false, error: "Network error: " + err.message };
     }
   };
 

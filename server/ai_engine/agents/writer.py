@@ -11,7 +11,7 @@ def run_writer(state: ResearchState) -> dict:
     if not api_key:
         return {"report": "GROQ_API_KEY missing.", "status": "error"}
 
-    model_name = os.getenv("GROQ_MODEL", "groq/compound")
+    model_name = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
     llm = ChatGroq(
         model=model_name,
         groq_api_key=api_key,

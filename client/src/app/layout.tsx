@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Multi-Agent Autonomous AI Research Platform",
+  title: "ResearchFlow AI — Multi-Agent Autonomous Research Platform",
   description: "LangGraph-Orchestrated Multi-Agent Autonomous LLM Research & Paper Generation Engine",
 };
 
@@ -26,9 +26,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans">
+      <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-900">
         <AuthProvider>
           {children}
         </AuthProvider>
