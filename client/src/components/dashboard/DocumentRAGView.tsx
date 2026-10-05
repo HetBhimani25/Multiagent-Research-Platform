@@ -73,7 +73,7 @@ export default function DocumentRAGView({ savedPapers, initialPaper }: DocumentR
             Personal Document RAG Assistant
           </h2>
           <p className="text-xs font-semibold text-[#4D2A00]/70 mt-0.5">
-            Query across your generated paper library using semantic vector similarity search.
+            Query across your generated document library using semantic vector similarity search.
           </p>
         </div>
 

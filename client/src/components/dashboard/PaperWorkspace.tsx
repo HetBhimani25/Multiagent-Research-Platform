@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import MermaidDiagram from "./MermaidDiagram";
 import { 
   FileText, 
   GitFork, 
@@ -32,7 +33,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
   const [chatMessages, setChatMessages] = useState<Array<{ sender: "user" | "ai"; text: string }>>([
     { 
       sender: "ai", 
-      text: `Hello! I am your AI Paper Assistant. You can ask me clarifying questions, request summaries, or ask for specific section expansions on "${topic || "this research paper"}".` 
+      text: `Hello! I am your AI Document Assistant. You can ask me clarifying questions, request summaries, or ask for specific section expansions on "${topic || "this research document"}".` 
     }
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -47,26 +48,66 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
 
   // Download LaTeX source (.tex)
   const downloadLaTeX = () => {
-    const latexHeader = `% ResearchFlow AI - Generated Academic Paper\n\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{hyperref}\n\\title{${topic || "Academic Research Paper"}}\n\\author{ResearchFlow AI Multi-Agent Platform}\n\\begin{document}\n\\maketitle\n\n`;
+    const latexHeader = `% ResearchFlow AI - Generated Academic Document\n\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{hyperref}\n\\title{${topic || "Academic Document"}}\n\\author{ResearchFlow AI Multi-Agent Platform}\n\\begin{document}\n\\maketitle\n\n`;
     const latexBody = report.replace(/#/g, "\\section").replace(/\*\*/g, "\\textbf");
     const latexFooter = `\n\\end{document}`;
     const blob = new Blob([latexHeader + latexBody + latexFooter], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${(topic || "paper").toLowerCase().replace(/[^a-z0-9]/g, "_")}.tex`;
+    link.download = `${(topic || "document").toLowerCase().replace(/[^a-z0-9]/g, "_")}.tex`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Helper to parse Mermaid code lines into clean node labels for PDF HTML rendering
+  const parseMermaidNodesForPDF = (mermaidCode: string): string[] => {
+    const lines = mermaidCode.split("\n");
+    const labels: string[] = [];
+    lines.forEach(line => {
+      const match = line.match(/\["([^"]+)"\]|\[([^\]]+)\]/);
+      if (match) {
+        const lbl = match[1] || match[2];
+        if (lbl && !labels.includes(lbl)) {
+          labels.push(lbl);
+        }
+      }
+    });
+    return labels;
   };
 
   // Markdown to IEEE Academic HTML Formatter Parser
   const formatMarkdownToIEEEHTML = (md: string): string => {
     if (!md) return "";
 
-    // 1. Process Mermaid & Code Blocks
+    // 1. Process Mermaid & Code Blocks into Visual Flowchart Cards for IEEE PDF
     let html = md.replace(/```mermaid([\s\S]*?)```/gi, (match, p1) => {
-      const cleanCode = p1.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return `<div class="diagram-card"><div class="diagram-header">SYSTEM ARCHITECTURE FLOWCHART</div><pre class="diagram-code">${cleanCode}</pre></div>`;
+      const nodeLabels = parseMermaidNodesForPDF(p1);
+      
+      if (nodeLabels.length === 0) {
+        return `<div class="diagram-card"><div class="diagram-header">SYSTEM ARCHITECTURE FLOWCHART</div><pre class="diagram-code">${p1.trim()}</pre></div>`;
+      }
+
+      let flowchartHTML = `
+        <div class="diagram-card" style="border: 2px solid #222; background: #fafafa; padding: 16px; border-radius: 8px; margin: 20px 0; text-align: center; page-break-inside: avoid;">
+          <div class="diagram-header" style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 12px;">SYSTEM ARCHITECTURE FLOWCHART DIAGRAM</div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      `;
+
+      nodeLabels.forEach((lbl, idx) => {
+        flowchartHTML += `
+          <div style="background: #fff; border: 1.5px solid #222; color: #000; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 9.5pt; display: inline-flex; align-items: center; gap: 8px; box-shadow: 1px 1px 4px rgba(0,0,0,0.1);">
+            <span style="background: #222; color: #fff; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 8pt; font-weight: bold;">${idx + 1}</span>
+            <span>${lbl}</span>
+          </div>
+        `;
+        if (idx < nodeLabels.length - 1) {
+          flowchartHTML += `<div style="color: #222; font-size: 14pt; font-weight: bold; margin: 2px 0;">↓</div>`;
+        }
+      });
+
+      flowchartHTML += `</div></div>`;
+      return flowchartHTML;
     });
 
     html = html.replace(/```([\s\S]*?)```/gi, (match, p1) => {
@@ -127,7 +168,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${topic || "IEEE Research Paper"}</title>
+          <title>${topic || "IEEE Technical Document"}</title>
           <style>
             @page { margin: 18mm; size: A4; }
             body { 
@@ -156,7 +197,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
               font-style: italic; 
               color: #444; 
             }
-            .paper-title { display: none; } /* Hide redundant h1 from body if header box is present */
+            .paper-title { display: none; }
             .section-title { 
               font-size: 13pt; 
               font-weight: bold; 
@@ -224,7 +265,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
         </head>
         <body>
           <div class="header-box">
-            <div class="paper-main-title">${topic || "Autonomous Academic Research Paper"}</div>
+            <div class="paper-main-title">${topic || "Autonomous Academic Document"}</div>
             <div class="paper-subtitle">Generated by ResearchFlow AI Multi-Agent Platform</div>
           </div>
           <div>${renderedHTML}</div>
@@ -251,15 +292,15 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
       const res = await fetch("http://localhost:8000/api/research/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: `Based on the paper topic "${topic}", answer this user question: ${userText}` }),
+        body: JSON.stringify({ question: `Based on the document topic "${topic}", answer this user question: ${userText}` }),
       });
       const data = await res.json();
-      const reply = data?.data?.report || "I have analyzed the research paper context. The findings suggest strong support for your query.";
+      const reply = data?.data?.report || "I have analyzed the document context. The findings suggest strong support for your query.";
       setChatMessages(prev => [...prev, { sender: "ai", text: reply }]);
     } catch (err) {
       setChatMessages(prev => [
         ...prev, 
-        { sender: "ai", text: "Based on the paper context, the research highlights key vector embeddings and multi-agent workflow principles addressing your question." }
+        { sender: "ai", text: "Based on the document context, the research highlights key vector embeddings and multi-agent workflow principles addressing your question." }
       ]);
     } finally {
       setIsChatLoading(false);
@@ -271,12 +312,12 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
   const extractedUrls = Array.from(new Set(report.match(urlRegex) || []));
 
   return (
-    <section className="bg-white border-2 border-[#CC6F00]/30 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(204,111,0,0.25)] flex flex-col gap-6">
+    <div className="h-full flex flex-col gap-4 min-h-0 overflow-hidden">
       
-      {/* Top Header & Navigation Tabs + Export Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#CC6F00]/20 pb-4 gap-4">
+      {/* 1. TOP FEATURES MENU BAR CARD - STRICTLY STICKY & FIXED AT TOP (IMAGE 2 DESIGN) */}
+      <div className="shrink-0 bg-white border-2 border-[#CC6F00]/30 rounded-2xl p-3 sm:p-4 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 z-20">
         
-        {/* Navigation Tabs */}
+        {/* Left Navigation Feature Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           <button
             onClick={() => setActiveTab("paper")}
@@ -290,17 +331,6 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
             <span>Rendered Paper</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("diagrams")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
-              activeTab === "diagrams"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
-                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
-            }`}
-          >
-            <GitFork className="w-4 h-4 text-[#CC6F00]" />
-            <span>Mermaid Flowcharts</span>
-          </button>
 
           <button
             onClick={() => setActiveTab("citations")}
@@ -327,8 +357,8 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
           </button>
         </div>
 
-        {/* Export Toolbar Actions */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Right Export Actions Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           <button
             onClick={copyToClipboard}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
@@ -364,120 +394,145 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
         </div>
       </div>
 
-      {/* Tab 1: Rendered GFM Paper Reader */}
-      {activeTab === "paper" && (
-        <div className="prose max-w-none break-words overflow-hidden [word-break:break-word] prose-headings:font-extrabold prose-headings:text-[#4D2A00] prose-p:text-[#4D2A00] prose-p:leading-relaxed prose-a:text-[#CC6F00] prose-a:font-bold prose-a:break-all prose-code:bg-[#F9E6A8]/30 prose-code:p-1 prose-code:rounded-md prose-code:break-all">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
-        </div>
-      )}
+      {/* 2. GENERATED DOCUMENT CONTENT CARD - INDEPENDENTLY SCROLLABLE (IMAGE 2 DESIGN) */}
+      <div className="flex-1 min-h-0 bg-white border-2 border-[#CC6F00]/30 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(204,111,0,0.25)] overflow-y-auto">
+        {/* Tab 1: Rendered GFM Paper Reader with Visual Mermaid Component */}
+        {activeTab === "paper" && (
+          <div className="prose max-w-none break-words overflow-hidden [word-break:break-word] prose-headings:font-extrabold prose-headings:text-[#4D2A00] prose-p:text-[#4D2A00] prose-p:leading-relaxed prose-a:text-[#CC6F00] prose-a:font-bold prose-a:break-all prose-code:bg-[#F9E6A8]/30 prose-code:p-1 prose-code:rounded-md prose-code:break-all">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || "");
+                  const isMermaid = match && match[1] === "mermaid";
+                  const contentStr = String(children).replace(/\n$/, "");
 
-      {/* Tab 2: Mermaid Flowchart Visualizer */}
-      {activeTab === "diagrams" && (
-        <div className="p-6 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl">
-          <h4 className="text-sm font-extrabold text-[#4D2A00] mb-3 flex items-center gap-2">
-            <GitFork className="w-4 h-4 text-[#CC6F00]" />
-            Synthesized System Architecture Flowchart
-          </h4>
-          <pre className="p-4 bg-white border border-[#CC6F00]/30 rounded-xl text-xs font-mono text-[#4D2A00] overflow-x-auto shadow-inner">
-{`graph TD
-    User["User Research Topic Prompt"] --> Planner["1. Planner Agent (Sub-Queries)"]
-    Planner --> Searcher["2. Searcher Agent (Tavily Search)"]
-    Searcher --> Crawler["3. Crawler Agent (HTML Scraper)"]
-    Crawler --> Chunker["4. Chunker Agent (800ch Segments)"]
+                  if (isMermaid) {
+                    return <MermaidDiagram chart={contentStr} />;
+                  }
+
+                  return (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                }
+              }}
+            >
+              {report}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {/* Tab 2: Mermaid Flowchart Visualizer */}
+        {activeTab === "diagrams" && (
+          <div className="p-6 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl flex flex-col gap-4">
+            <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
+              <GitFork className="w-4 h-4 text-[#CC6F00]" />
+              Synthesized System Architecture Flowchart
+            </h4>
+            <MermaidDiagram 
+              chart={`graph LR
+    User["User Research Topic Prompt"] --> Planner["1. Planner Agent (Sub-Queries & Breakdown)"]
+    Planner --> Searcher["2. Searcher Agent (Tavily Web Search)"]
+    Searcher --> Crawler["3. Crawler Agent (HTML Scraper & Cleaner)"]
+    Crawler --> Chunker["4. Chunker Agent (800-Char Semantic Chunks)"]
     Chunker --> RAG["5. Vector RAG Agent (pgvector Cosine Search)"]
-    RAG --> Reasoner["6. Reasoner Agent (Analytical Synthesis)"]
-    Reasoner --> Writer["7. Writer Agent (Markdown Draft)"]
-    Writer --> Citation["8. Citation Agent (URL Verification)"]
-    Citation --> Reviewer["9. Reviewer Agent (Quality Loop >= 80%)"]
-    Reviewer --> Diagram["10. Diagram Agent (Mermaid Flowcharts)"]`}
-          </pre>
-        </div>
-      )}
+    RAG --> Reasoner["6. Reasoner Agent (Analytical Insight Synthesis)"]
+    Reasoner --> Writer["7. Writer Agent (Academic Markdown Draft)"]
+    Writer --> Citation["8. Citation Agent (URL & Claim Verification)"]
+    Citation --> Reviewer["9. Reviewer Agent (Quality Score Loop >= 80%)"]
+    Reviewer --> Diagram["10. Diagram Agent (Mermaid Flowchart Generator)"]`}
+            />
+          </div>
+        )}
 
-      {/* Tab 3: Sources & Verified Citations */}
-      {activeTab === "citations" && (
-        <div className="flex flex-col gap-3">
-          <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-[#CC6F00]" />
-            Verified Web Sources & Citations List
-          </h4>
-          {extractedUrls.length === 0 ? (
-            <p className="text-xs text-[#4D2A00]/70 font-semibold p-4 bg-[#F9E6A8]/20 rounded-xl border border-[#CC6F00]/20">
-              No external URLs detected in this paper draft.
-            </p>
-          ) : (
-            extractedUrls.map((url, idx) => (
-              <div key={idx} className="p-3 bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-xl flex items-center justify-between min-w-0 overflow-hidden gap-2">
-                <span className="text-xs font-bold text-[#4D2A00] truncate min-w-0 flex-1">
-                  [{idx + 1}] {url}
-                </span>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs font-extrabold text-[#CC6F00] hover:underline shrink-0"
-                >
-                  <span>Visit Source</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Tab 4: Chat-with-Paper QA Assistant */}
-      {activeTab === "chat" && (
-        <div className="flex flex-col gap-4 min-h-[350px]">
-          <div className="flex-1 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto">
-            {chatMessages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex items-start gap-2.5 max-w-[85%] ${
-                  msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
-                }`}
-              >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs ${
-                  msg.sender === "user" ? "bg-[#F2A900] text-[#4D2A00]" : "bg-[#CC6F00] text-white"
-                }`}>
-                  {msg.sender === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+        {/* Tab 3: Sources & Verified Citations */}
+        {activeTab === "citations" && (
+          <div className="flex flex-col gap-3">
+            <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-[#CC6F00]" />
+              Verified Web Sources & Citations List
+            </h4>
+            {extractedUrls.length === 0 ? (
+              <p className="text-xs text-[#4D2A00]/70 font-semibold p-4 bg-[#F9E6A8]/20 rounded-xl border border-[#CC6F00]/20">
+                No external URLs detected in this paper draft.
+              </p>
+            ) : (
+              extractedUrls.map((url, idx) => (
+                <div key={idx} className="p-3 bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-xl flex items-center justify-between min-w-0 overflow-hidden gap-2">
+                  <span className="text-xs font-bold text-[#4D2A00] truncate min-w-0 flex-1">
+                    [{idx + 1}] {url}
+                  </span>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs font-extrabold text-[#CC6F00] hover:underline shrink-0"
+                  >
+                    <span>Visit Source</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-                <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed shadow-xs ${
-                  msg.sender === "user"
-                    ? "bg-[#F2A900] text-[#4D2A00]"
-                    : "bg-white border border-[#CC6F00]/30 text-[#4D2A00]"
-                }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-            {isChatLoading && (
-              <div className="flex items-center gap-2 text-xs font-bold text-[#CC6F00] p-2">
-                <Sparkles className="w-4 h-4 animate-spin text-[#F2A900]" />
-                <span>Analyzing paper context...</span>
-              </div>
+              ))
             )}
           </div>
+        )}
 
-          <form onSubmit={handleSendChatMessage} className="flex gap-2">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask a clarifying question about this paper..."
-              className="flex-1 bg-white border border-[#CC6F00]/30 rounded-xl px-4 py-2 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:ring-2 focus:ring-[#F2A900]"
-            />
-            <button
-              type="submit"
-              disabled={!chatInput.trim() || isChatLoading}
-              className="px-4 py-2 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] text-[#4D2A00] hover:text-white text-xs font-extrabold border border-[#CC6F00]/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Ask</span>
-            </button>
-          </form>
-        </div>
-      )}
-    </section>
+        {/* Tab 4: Chat-with-Paper QA Assistant */}
+        {activeTab === "chat" && (
+          <div className="flex flex-col gap-4 min-h-[350px]">
+            <div className="flex-1 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto">
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-start gap-2.5 max-w-[85%] ${
+                    msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs ${
+                    msg.sender === "user" ? "bg-[#F2A900] text-[#4D2A00]" : "bg-[#CC6F00] text-white"
+                  }`}>
+                    {msg.sender === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  </div>
+                  <div className={`p-3 rounded-2xl text-xs font-semibold leading-relaxed shadow-xs ${
+                    msg.sender === "user"
+                      ? "bg-[#F2A900] text-[#4D2A00]"
+                      : "bg-white border border-[#CC6F00]/30 text-[#4D2A00]"
+                  }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isChatLoading && (
+                <div className="flex items-center gap-2 text-xs font-bold text-[#CC6F00] p-2">
+                  <Sparkles className="w-4 h-4 animate-spin text-[#F2A900]" />
+                  <span>Analyzing document context...</span>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSendChatMessage} className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask a clarifying question about this document..."
+                className="flex-1 bg-white border border-[#CC6F00]/30 rounded-xl px-4 py-2 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:ring-2 focus:ring-[#F2A900]"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim() || isChatLoading}
+                className="px-4 py-2 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] text-[#4D2A00] hover:text-white text-xs font-extrabold border border-[#CC6F00]/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Ask</span>
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
+    </div>
   );
 }

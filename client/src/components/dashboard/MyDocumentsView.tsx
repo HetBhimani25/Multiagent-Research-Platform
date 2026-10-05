@@ -66,7 +66,7 @@ export default function MyDocumentsView({
           className="px-6 py-3 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-sm shadow-[0_10px_25px_rgba(204,111,0,0.3)] transition-all flex items-center gap-2 border-2 border-[#CC6F00]/40 shrink-0 self-start sm:self-center"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Generate New Paper</span>
+          <span>Generate New Document</span>
         </button>
       </div>
 
@@ -107,7 +107,7 @@ export default function MyDocumentsView({
             className="mt-2 px-8 py-3.5 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-sm shadow-[0_12px_30px_rgba(204,111,0,0.35)] transition-all flex items-center gap-2 border-2 border-[#CC6F00]/40"
           >
             <Sparkles className="w-4 h-4 text-[#CC6F00]" />
-            <span>Generate Your First Research Paper</span>
+            <span>Generate Your First Research Document</span>
           </button>
         </div>
       ) : (

@@ -15,6 +15,7 @@ import ResearchInputConsole, { ResearchDepth, OutputFormat } from "../components
 import AgentPipelineTracker, { AgentStep } from "../components/dashboard/AgentPipelineTracker";
 import PaperWorkspace from "../components/dashboard/PaperWorkspace";
 import CollaborationView from "../components/dashboard/CollaborationView";
+import CollabEditorModal from "../components/dashboard/CollabEditorModal";
 import DocumentRAGView from "../components/dashboard/DocumentRAGView";
 import EngineMetricsView from "../components/dashboard/EngineMetricsView";
 import { SavedPaper } from "../components/dashboard/SavedPapersModal";
@@ -25,6 +26,12 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [authView, setAuthView] = useState<"login" | "signup">("login");
   const [viewMode, setViewMode] = useState<"landing" | "dashboard">("landing");
+  
+  // Real-Time Collaboration Modal State
+  const [collabModalOpen, setCollabModalOpen] = useState(false);
+  const [collabRoomId, setCollabRoomId] = useState("");
+  const [collabTopic, setCollabTopic] = useState("");
+  const [collabContent, setCollabContent] = useState("");
   
   // Active Sidebar View (Default Home Screen = "documents")
   const [currentView, setCurrentView] = useState<DashboardView>("documents");
@@ -117,7 +124,7 @@ export default function Home() {
       const res = await fetch("http://localhost:8000/api/research/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, depth: researchDepth }),
       });
 
       const responseData = await res.json();
@@ -154,7 +161,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9E6A8] text-[#4D2A00] flex relative overflow-x-hidden">
+    <div className="h-screen w-screen bg-[#F9E6A8] text-[#4D2A00] flex overflow-hidden fixed inset-0">
       
       {/* 10-Agent Architecture Snap-Scroll Landing Overlay */}
       {viewMode === "landing" && (
@@ -174,7 +181,7 @@ export default function Home() {
       />
 
       {/* Main Workspace View Container */}
-      <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto flex flex-col gap-6 overflow-y-auto">
+      <main className={`flex-1 h-full min-h-0 p-6 sm:p-8 max-w-7xl w-full mx-auto flex flex-col gap-6 ${currentView === "reader" ? "overflow-hidden" : "overflow-y-auto"}`}>
         
         {/* View 1: My Documents & Papers (Default Home View) */}
         {currentView === "documents" && (
@@ -213,13 +220,6 @@ export default function Home() {
               loading={loading}
               queries={queries}
             />
-
-            {report && (
-              <PaperWorkspace
-                report={report}
-                topic={question}
-              />
-            )}
           </div>
         )}
 
@@ -250,7 +250,15 @@ export default function Home() {
 
         {/* View 4: Collaborative Workspaces View */}
         {currentView === "collaboration" && (
-          <CollaborationView savedPapers={savedPapers} />
+          <CollaborationView
+            savedPapers={savedPapers}
+            onOpenCollab={(paper, roomId) => {
+              setCollabRoomId(roomId);
+              setCollabTopic(paper ? paper.topic : `Workspace ${roomId}`);
+              setCollabContent(paper ? paper.report : "");
+              setCollabModalOpen(true);
+            }}
+          />
         )}
 
         {/* View 5: Personal Document RAG Assistant View */}
@@ -267,6 +275,15 @@ export default function Home() {
         )}
 
       </main>
+
+      {/* Real-Time Collaborative Co-Authoring Modal */}
+      <CollabEditorModal
+        isOpen={collabModalOpen}
+        onClose={() => setCollabModalOpen(false)}
+        roomId={collabRoomId}
+        initialTopic={collabTopic}
+        initialContent={collabContent}
+      />
 
     </div>
   );

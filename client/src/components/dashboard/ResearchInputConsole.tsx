@@ -216,21 +216,26 @@ export default function ResearchInputConsole({
         </div>
 
         {/* Action Button Row */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between pt-4 border-t-2 border-[#CC6F00]/20 flex-wrap gap-4">
+          <div className="text-xs font-bold text-[#CC6F00] flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-[#F2A900]" />
+            <span>Ready to execute 10-Agent stateful research pipeline</span>
+          </div>
+
           <button
             type="submit"
             disabled={loading || !question.trim()}
-            className="px-8 py-3 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold shadow-[0_10px_25px_rgba(204,111,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 text-sm border-2 border-[#CC6F00]/40"
+            className="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] text-[#4D2A00] hover:text-white font-black text-sm sm:text-base shadow-[0_12px_30px_rgba(204,111,0,0.35)] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2.5 border-2 border-[#CC6F00] cursor-pointer active:scale-95"
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-[#4D2A00]" />
-                Executing LangGraph Pipeline...
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Executing LangGraph Pipeline...</span>
               </>
             ) : (
               <>
-                <Bot className="w-4 h-4" />
-                Launch Multi-Agent Research
+                <Bot className="w-5 h-5" />
+                <span>Launch Multi-Agent Research</span>
               </>
             )}
           </button>

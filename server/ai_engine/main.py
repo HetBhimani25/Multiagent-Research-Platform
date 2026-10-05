@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ app.add_middleware(
 
 class ResearchRequest(BaseModel):
     question: str
+    depth: Optional[str] = "deep"
 
 @app.get("/")
 def read_root():
@@ -38,7 +40,8 @@ async def execute_research(payload: ResearchRequest):
         raise HTTPException(status_code=400, detail="Question prompt is required.")
     
     try:
-        result = await run_research_pipeline(payload.question)
+        pipeline_depth = payload.depth.lower() if payload.depth else "deep"
+        result = await run_research_pipeline(payload.question, depth=pipeline_depth)
         return {
             "status": "success",
             "data": result

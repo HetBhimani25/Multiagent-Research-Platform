@@ -50,7 +50,7 @@ export default function SidebarDrawer({
     },
     {
       id: "generate" as DashboardView,
-      label: "Generate New Paper",
+      label: "Generate New Document",
       icon: PlusCircle,
       highlight: true,
     },
@@ -73,11 +73,11 @@ export default function SidebarDrawer({
   ];
 
   return (
-    <aside className="w-64 sm:w-72 bg-white border-r-2 border-[#CC6F00]/30 min-h-screen flex flex-col justify-between p-4 sm:p-5 shadow-[5px_0_30px_rgba(204,111,0,0.15)] z-30 shrink-0">
+    <aside className="w-64 sm:w-72 h-full bg-white border-r-2 border-[#CC6F00]/30 flex flex-col justify-between p-4 sm:p-5 shadow-[5px_0_30px_rgba(204,111,0,0.15)] z-30 shrink-0">
       
-      {/* Top Header: Brand Logo & Title */}
-      <div>
-        <div className="flex items-center space-x-3 pb-6 border-b border-[#CC6F00]/20">
+      {/* Top Header: Brand Logo & Title + Scrollable Navigation Area */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-1.5 py-1">
+        <div className="flex items-center space-x-3 pb-5 border-b border-[#CC6F00]/20 shrink-0">
           <div className="p-2.5 bg-[#F2A900]/20 border border-[#CC6F00]/30 text-[#CC6F00] rounded-2xl shadow-xs">
             <BrainCircuit className="w-6 h-6" />
           </div>
@@ -93,8 +93,8 @@ export default function SidebarDrawer({
         </div>
 
         {/* Main Navigation Menu Links */}
-        <div className="mt-6 flex flex-col space-y-1.5">
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#CC6F00] px-3 mb-1">
+        <div className="mt-5 flex flex-col space-y-1.5 flex-1 pb-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#CC6F00] px-2 mb-1">
             Platform Views
           </span>
 
@@ -108,7 +108,7 @@ export default function SidebarDrawer({
                 onClick={() => setCurrentView(item.id)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl transition-all ${
                   isActive
-                    ? "bg-[#F2A900] text-[#4D2A00] shadow-[0_4px_15px_rgba(242,169,0,0.4)] border border-[#CC6F00]/40 scale-[1.02]"
+                    ? "bg-[#F2A900] text-[#4D2A00] shadow-[0_4px_15px_rgba(242,169,0,0.4)] border-2 border-[#CC6F00]/50 font-black"
                     : item.highlight
                     ? "bg-[#F9E6A8]/50 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30"
                     : "text-[#4D2A00]/80 hover:bg-[#F9E6A8]/40 hover:text-[#4D2A00]"
@@ -116,7 +116,7 @@ export default function SidebarDrawer({
               >
                 <div className="flex items-center space-x-2 flex-1 min-w-0 mr-1">
                   <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#4D2A00]" : "text-[#CC6F00]"}`} />
-                  <span className="whitespace-nowrap text-[11px] sm:text-xs font-extrabold truncate">{item.label}</span>
+                  <span className="text-[11px] sm:text-xs font-extrabold truncate">{item.label}</span>
                 </div>
 
                 {item.badge !== undefined && (
@@ -137,29 +137,29 @@ export default function SidebarDrawer({
           {/* Explore Agents Flow (Landing View Overlay) */}
           <button
             onClick={onExploreAgents}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold text-[#4D2A00]/80 hover:bg-[#F9E6A8]/40 hover:text-[#4D2A00] transition-all border border-dashed border-[#CC6F00]/30"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-extrabold text-[#4D2A00]/80 hover:bg-[#F9E6A8]/40 hover:text-[#4D2A00] transition-all border border-dashed border-[#CC6F00]/30"
           >
-            <div className="flex items-center space-x-2.5">
-              <Compass className="w-4 h-4 text-[#CC6F00]" />
-              <span>Explore 10 Agents Flow</span>
+            <div className="flex items-center space-x-2 min-w-0">
+              <Compass className="w-4 h-4 text-[#CC6F00] shrink-0" />
+              <span className="truncate">Explore 10 Agents Flow</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <ChevronRight className="w-3.5 h-3.5 text-[#CC6F00] shrink-0 ml-1" />
           </button>
         </div>
       </div>
 
-      {/* Bottom User Profile Section */}
-      <div className="pt-4 border-t border-[#CC6F00]/20">
+      {/* Bottom User Profile Section - Strictly Fixed at Bottom */}
+      <div className="pt-3 border-t border-[#CC6F00]/20 shrink-0 bg-white">
         {user && (
           <div className="bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-2xl p-2.5 flex items-center justify-between shadow-xs">
             <button
               onClick={onOpenSettings}
-              className="flex items-center space-x-2 text-left flex-1 truncate hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-2 text-left flex-1 truncate hover:opacity-80 transition-opacity min-w-0"
             >
               <div className="w-8 h-8 rounded-xl bg-[#F2A900] text-[#4D2A00] font-black text-xs flex items-center justify-center border border-[#CC6F00]/30 shrink-0">
-                {user.fullName.charAt(0).toUpperCase()}
+                {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
               </div>
-              <div className="truncate">
+              <div className="truncate min-w-0">
                 <p className="text-xs font-extrabold text-[#4D2A00] truncate">{user.fullName}</p>
                 <p className="text-[10px] font-bold text-[#CC6F00] truncate">{user.email}</p>
               </div>
