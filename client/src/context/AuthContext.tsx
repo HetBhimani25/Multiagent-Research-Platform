@@ -52,12 +52,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      // If token invalid or gateway offline, reset session gracefully without throwing breaking overlay error
+      // If token invalid or user removed from DB, reset entire session cleanly
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("researchflow_saved_papers");
+      localStorage.removeItem("rf_theme");
       setUser(null);
       setToken(null);
     } catch (err) {
       localStorage.removeItem("auth_token");
+      localStorage.removeItem("researchflow_saved_papers");
+      localStorage.removeItem("rf_theme");
       setUser(null);
       setToken(null);
     } finally {
@@ -119,6 +123,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("researchflow_saved_papers");
+    localStorage.removeItem("rf_theme");
     setToken(null);
     setUser(null);
   };

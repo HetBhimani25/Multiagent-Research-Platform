@@ -35,7 +35,7 @@ def build_research_graph(depth: str = "deep"):
         builder.add_edge("writer", "diagram")
         builder.add_edge("diagram", END)
     elif depth == "balanced":
-        # Balanced Depth: 7 Agents (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Citation -> END)
+        # Balanced Depth: 8 Agents with Flowchart Diagram (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Citation -> Diagram -> END)
         builder.add_edge("planner", "searcher")
         builder.add_edge("searcher", "crawler")
         builder.add_edge("crawler", "chunker")
@@ -43,7 +43,8 @@ def build_research_graph(depth: str = "deep"):
         builder.add_edge("vector_rag", "reasoner")
         builder.add_edge("reasoner", "writer")
         builder.add_edge("writer", "citation")
-        builder.add_edge("citation", END)
+        builder.add_edge("citation", "diagram")
+        builder.add_edge("diagram", END)
     else:
         # Deep Academic Depth: Full 10 Agents (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Citation -> Reviewer -> Diagram -> END)
         builder.add_edge("planner", "searcher")
@@ -59,7 +60,15 @@ def build_research_graph(depth: str = "deep"):
 
     return builder.compile()
 
-async def run_research_pipeline(question: str, depth: str = "deep") -> dict:
+async def run_research_pipeline(
+    question: str,
+    depth: str = "deep",
+    doc_type: str = "research_paper",
+    workspace_id: str = None,
+    document_id: str = None,
+    initiated_by: str = None,
+    run_id: str = None
+) -> dict:
     initial_state: ResearchState = {
         "question": question,
         "plan": "",
@@ -77,9 +86,21 @@ async def run_research_pipeline(question: str, depth: str = "deep") -> dict:
         "mermaid_diagram": "",
         "report": "",
         "status": "started",
-        "error": None
+        "error": None,
+        # Document Type Objective
+        "doc_type": doc_type,
+        # Multi-User Collaboration Metadata
+        "workspace_id": workspace_id,
+        "document_id": document_id,
+        "initiated_by": initiated_by,
+        "run_id": run_id
     }
 
     graph = build_research_graph(depth=depth)
     final_state = await graph.ainvoke(initial_state)
+
+    # Bulletproof fallback: guarantee report is never empty if cited_report or draft_report was produced
+    if not final_state.get("report"):
+        final_state["report"] = final_state.get("cited_report") or final_state.get("draft_report") or ""
+
     return final_state

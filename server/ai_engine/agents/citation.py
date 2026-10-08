@@ -43,5 +43,6 @@ def run_citation(state: ResearchState) -> dict:
 
     return {
         "cited_report": cited_report,
+        "report": cited_report,
         "status": "cited"
     }

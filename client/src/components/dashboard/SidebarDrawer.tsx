@@ -12,7 +12,9 @@ import {
   Settings, 
   LogOut,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Bell,
+  KeyRound
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -30,6 +32,9 @@ interface SidebarDrawerProps {
   onExploreAgents: () => void;
   onOpenSettings: () => void;
   savedPapersCount: number;
+  unreadNotificationsCount?: number;
+  onOpenNotifications?: () => void;
+  onOpenJoinWorkspace?: () => void;
 }
 
 export default function SidebarDrawer({
@@ -37,7 +42,10 @@ export default function SidebarDrawer({
   setCurrentView,
   onExploreAgents,
   onOpenSettings,
-  savedPapersCount
+  savedPapersCount,
+  unreadNotificationsCount = 0,
+  onOpenNotifications,
+  onOpenJoinWorkspace,
 }: SidebarDrawerProps) {
   const { user, logout } = useAuth();
 
@@ -77,19 +85,37 @@ export default function SidebarDrawer({
       
       {/* Top Header: Brand Logo & Title + Scrollable Navigation Area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-1.5 py-1">
-        <div className="flex items-center space-x-3 pb-5 border-b border-[#CC6F00]/20 shrink-0">
-          <div className="p-2.5 bg-[#F2A900]/20 border border-[#CC6F00]/30 text-[#CC6F00] rounded-2xl shadow-xs">
-            <BrainCircuit className="w-6 h-6" />
+        <div className="flex items-center justify-between pb-5 border-b border-[#CC6F00]/20 shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-[#F2A900]/20 border border-[#CC6F00]/30 text-[#CC6F00] rounded-2xl shadow-xs">
+              <BrainCircuit className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-base leading-none bg-gradient-to-r from-[#4D2A00] via-[#CC6F00] to-[#4D2A00] bg-clip-text text-transparent">
+                ResearchFlow AI
+              </h1>
+              <p className="text-[10px] font-bold text-[#CC6F00] mt-1 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-[#F2A900]" />
+                v2.0 Multi-Agent Platform
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-extrabold text-base leading-none bg-gradient-to-r from-[#4D2A00] via-[#CC6F00] to-[#4D2A00] bg-clip-text text-transparent">
-              ResearchFlow AI
-            </h1>
-            <p className="text-[10px] font-bold text-[#CC6F00] mt-1 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-[#F2A900]" />
-              v2.0 Multi-Agent Platform
-            </p>
-          </div>
+
+          {/* In-app Notification Bell */}
+          {onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-2 rounded-xl bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] border border-[#CC6F00]/30 text-[#4D2A00] transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4 text-[#CC6F00]" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#CC6F00] text-white font-black text-[9px] flex items-center justify-center">
+                  {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Main Navigation Menu Links */}
@@ -134,10 +160,24 @@ export default function SidebarDrawer({
 
           <div className="my-2 border-t border-[#CC6F00]/20"></div>
 
+          {/* Join Research Workspace (via Code) */}
+          {onOpenJoinWorkspace && (
+            <button
+              onClick={onOpenJoinWorkspace}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-extrabold text-[#4D2A00] bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] transition-all border border-[#CC6F00]/30 shadow-2xs"
+            >
+              <div className="flex items-center space-x-2 min-w-0">
+                <KeyRound className="w-4 h-4 text-[#CC6F00] shrink-0" />
+                <span className="truncate">Join via Invite Code</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[#CC6F00] shrink-0 ml-1" />
+            </button>
+          )}
+
           {/* Explore Agents Flow (Landing View Overlay) */}
           <button
             onClick={onExploreAgents}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-extrabold text-[#4D2A00]/80 hover:bg-[#F9E6A8]/40 hover:text-[#4D2A00] transition-all border border-dashed border-[#CC6F00]/30"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-extrabold text-[#4D2A00]/80 hover:bg-[#F9E6A8]/40 hover:text-[#4D2A00] transition-all border border-dashed border-[#CC6F00]/30 mt-1"
           >
             <div className="flex items-center space-x-2 min-w-0">
               <Compass className="w-4 h-4 text-[#CC6F00] shrink-0" />
@@ -148,7 +188,7 @@ export default function SidebarDrawer({
         </div>
       </div>
 
-      {/* Bottom User Profile Section - Strictly Fixed at Bottom */}
+      {/* Bottom User Profile Section */}
       <div className="pt-3 border-t border-[#CC6F00]/20 shrink-0 bg-white">
         {user && (
           <div className="bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-2xl p-2.5 flex items-center justify-between shadow-xs">

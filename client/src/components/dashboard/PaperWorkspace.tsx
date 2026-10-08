@@ -17,17 +17,64 @@ import {
   Bot,
   User,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Share2,
+  Users,
+  Activity,
+  CheckSquare,
+  History,
+  Lock,
+  Unlock,
+  ChevronDown
 } from "lucide-react";
+
+import ShareDocumentModal from "./ShareDocumentModal";
+import CollaboratorPanel from "./CollaboratorPanel";
+import CommentPanel from "./CommentPanel";
+import TaskPanel from "./TaskPanel";
+import VersionHistory from "./VersionHistory";
+import ActivityFeed from "./ActivityFeed";
+import AIRunPanel from "./AIRunPanel";
 
 interface PaperWorkspaceProps {
   report: string;
   topic: string;
+  docType?: string;
+  documentId?: string;
+  workspaceId?: string;
+  isOwner?: boolean;
+  currentRole?: string;
+  authToken?: string | null;
+  currentUserId?: string;
+  status?: string;
+  onDocumentUpdated?: (newContent: string) => void;
+  onStatusChanged?: (newStatus: string) => void;
 }
 
-export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<"paper" | "diagrams" | "citations" | "chat">("paper");
+export default function PaperWorkspace({
+  report,
+  topic,
+  docType = "research_paper",
+  documentId = "",
+  workspaceId = "",
+  isOwner = true,
+  currentRole = "OWNER",
+  authToken = null,
+  currentUserId = "",
+  status = "DRAFT",
+  onDocumentUpdated,
+  onStatusChanged,
+}: PaperWorkspaceProps) {
+  const [activeTab, setActiveTab] = useState<
+    "paper" | "diagrams" | "citations" | "chat" | "comments" | "tasks" | "versions" | "ai_runs"
+  >("paper");
   const [copied, setCopied] = useState(false);
+  const [docStatus, setDocStatus] = useState(status);
+
+  // Modals & Drawers state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isCollaboratorPanelOpen, setIsCollaboratorPanelOpen] = useState(false);
+  const [isActivityFeedOpen, setIsActivityFeedOpen] = useState(false);
 
   // Chat with Paper QA state
   const [chatMessages, setChatMessages] = useState<Array<{ sender: "user" | "ai"; text: string }>>([
@@ -38,6 +85,17 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  const getDocTypeLabel = (dt?: string) => {
+    switch (dt) {
+      case "technical_approach": return "Technical Approach";
+      case "system_design": return "System Design";
+      case "comparative_analysis": return "Comparative Analysis";
+      case "executive_summary": return "Executive Whitepaper";
+      case "literature_review": return "Literature Review";
+      default: return "Research Paper";
+    }
+  };
 
   // Copy Markdown
   const copyToClipboard = () => {
@@ -80,7 +138,6 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
   const formatMarkdownToIEEEHTML = (md: string): string => {
     if (!md) return "";
 
-    // 1. Process Mermaid & Code Blocks into Visual Flowchart Cards for IEEE PDF
     let html = md.replace(/```mermaid([\s\S]*?)```/gi, (match, p1) => {
       const nodeLabels = parseMermaidNodesForPDF(p1);
       
@@ -115,27 +172,21 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
       return `<pre class="code-block"><code>${cleanCode}</code></pre>`;
     });
 
-    // 2. Headings
     html = html.replace(/^# (.*$)/gim, '<h1 class="paper-title">$1</h1>');
     html = html.replace(/^## (.*$)/gim, '<h2 class="section-title">$1</h2>');
     html = html.replace(/^### (.*$)/gim, '<h3 class="subsection-title">$1</h3>');
     html = html.replace(/^#### (.*$)/gim, '<h4 class="sub-subsection-title">$1</h4>');
 
-    // 3. Bold & Italics
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-    // 4. Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="citation-link" target="_blank">$1</a>');
 
-    // 5. Lists
     html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li class="list-item">$1</li>');
     html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li class="ordered-item">$1</li>');
 
     html = html.replace(/(<li class="list-item">[\s\S]*?<\/li>)+/gi, '<ul class="paper-list">$&</ul>');
     html = html.replace(/(<li class="ordered-item">[\s\S]*?<\/li>)+/gi, '<ol class="paper-list">$&</ol>');
 
-    // 6. Paragraphs
     const blocks = html.split(/\n\n+/);
     const formattedBlocks = blocks.map(block => {
       const trimmed = block.trim();
@@ -157,7 +208,6 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
     return formattedBlocks.join('\n\n');
   };
 
-  // Export IEEE PDF (Triggers Print / PDF Save with IEEE Styling)
   const exportIEEEPDF = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -292,7 +342,12 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
       const res = await fetch("http://localhost:8000/api/research/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: `Based on the document topic "${topic}", answer this user question: ${userText}` }),
+        body: JSON.stringify({ 
+          question: `Based on the document topic "${topic}", answer this user question: ${userText}`,
+          workspace_id: workspaceId || null,
+          document_id: documentId || null,
+          initiated_by: currentUserId || null,
+        }),
       });
       const data = await res.json();
       const reply = data?.data?.report || "I have analyzed the document context. The findings suggest strong support for your query.";
@@ -307,96 +362,212 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
     }
   };
 
+  // Status Change Handler
+  const handleStatusChange = async (newStatus: string) => {
+    if (!authToken || !documentId) {
+      setDocStatus(newStatus);
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:4000/api/documents/${documentId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setDocStatus(newStatus);
+        if (onStatusChanged) onStatusChanged(newStatus);
+      }
+    } catch (err) {
+      console.error("Status change error:", err);
+    }
+  };
+
   // Extract URLs for Citations Tab
   const urlRegex = /(https?:\/\/[^\s\)\"]+)/g;
   const extractedUrls = Array.from(new Set(report.match(urlRegex) || []));
 
   return (
-    <div className="h-full flex flex-col gap-4 min-h-0 overflow-hidden">
+    <div className="h-full flex flex-col gap-4 min-h-0 overflow-hidden relative">
       
-      {/* 1. TOP FEATURES MENU BAR CARD - STRICTLY STICKY & FIXED AT TOP (IMAGE 2 DESIGN) */}
+      {/* 1. TOP FEATURES MENU BAR CARD - STRICTLY STICKY & FIXED AT TOP */}
       <div className="shrink-0 bg-white border-2 border-[#CC6F00]/30 rounded-2xl p-3 sm:p-4 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 z-20">
         
         {/* Left Navigation Feature Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           <button
             onClick={() => setActiveTab("paper")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "paper"
                 ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
-            <FileText className="w-4 h-4 text-[#CC6F00]" />
+            <FileText className="w-3.5 h-3.5 text-[#CC6F00]" />
             <span>Rendered Paper</span>
           </button>
 
+          <button
+            onClick={() => setActiveTab("comments")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+              activeTab === "comments"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>Comments</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("tasks")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+              activeTab === "tasks"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
+            }`}
+          >
+            <CheckSquare className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>Tasks</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("versions")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+              activeTab === "versions"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
+            }`}
+          >
+            <History className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>Versions</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("ai_runs")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
+              activeTab === "ai_runs"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>AI Runs</span>
+          </button>
 
           <button
             onClick={() => setActiveTab("citations")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "citations"
                 ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
-            <Link2 className="w-4 h-4 text-[#CC6F00]" />
+            <Link2 className="w-3.5 h-3.5 text-[#CC6F00]" />
             <span>Citations ({extractedUrls.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab("chat")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "chat"
                 ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
-            <MessageSquare className="w-4 h-4 text-[#CC6F00]" />
-            <span>Chat-with-Paper QA</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>Chat QA</span>
           </button>
         </div>
 
-        {/* Right Export Actions Toolbar */}
+        {/* Right Collaboration & Export Toolbar */}
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          
+          {/* Document Type Badge */}
+          <div className="flex items-center gap-1.5 bg-[#F9E6A8] border border-[#CC6F00]/30 rounded-xl px-2.5 py-1 text-[11px] font-extrabold text-[#4D2A00] uppercase tracking-wider shadow-2xs">
+            <FileText className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>{getDocTypeLabel(docType)}</span>
+          </div>
+
+          {/* Document Status Selector */}
+          <div className="flex items-center bg-[#F9E6A8]/40 border border-[#CC6F00]/30 rounded-xl px-2 py-1 text-[11px] font-extrabold text-[#4D2A00]">
+            <span className="mr-1.5">Status:</span>
+            <select
+              value={docStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={!isOwner && currentRole !== "EDITOR"}
+              className="bg-transparent font-black text-[#CC6F00] focus:outline-none cursor-pointer"
+            >
+              <option value="DRAFT">DRAFT</option>
+              <option value="COLLABORATING">COLLABORATING</option>
+              <option value="IN_REVIEW">IN REVIEW</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="FINAL">FINAL (LOCKED)</option>
+            </select>
+          </div>
+
+          {/* Share Button (Opens Share Modal) */}
+          <button
+            onClick={() => setIsShareModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Share</span>
+          </button>
+
+          {/* Collaborators Button */}
+          <button
+            onClick={() => setIsCollaboratorPanelOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            title="View Workspace Members"
+          >
+            <Users className="w-3.5 h-3.5 text-[#CC6F00]" />
+            <span>Team</span>
+          </button>
+
+          {/* Activity Feed Button */}
+          <button
+            onClick={() => setIsActivityFeedOpen(true)}
+            className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            title="Workspace Activity Audit"
+          >
+            <Activity className="w-3.5 h-3.5 text-[#CC6F00]" />
+          </button>
+
+          {/* Export Actions */}
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            title="Copy Markdown"
           >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-[#CC6F00]" />
-                <span>Copy Markdown</span>
-              </>
-            )}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#CC6F00]" />}
           </button>
 
           <button
             onClick={exportIEEEPDF}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
           >
             <FileDown className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>IEEE PDF</span>
+            <span>PDF</span>
           </button>
 
           <button
             onClick={downloadLaTeX}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+            className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
           >
             <FileCode className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>LaTeX (.tex)</span>
+            <span>LaTeX</span>
           </button>
         </div>
       </div>
 
-      {/* 2. GENERATED DOCUMENT CONTENT CARD - INDEPENDENTLY SCROLLABLE (IMAGE 2 DESIGN) */}
+      {/* 2. MAIN ACTIVE TAB CONTENT CONTAINER */}
       <div className="flex-1 min-h-0 bg-white border-2 border-[#CC6F00]/30 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(204,111,0,0.25)] overflow-y-auto">
-        {/* Tab 1: Rendered GFM Paper Reader with Visual Mermaid Component */}
+        
+        {/* Tab 1: Rendered GFM Paper Reader */}
         {activeTab === "paper" && (
           <div className="prose max-w-none break-words overflow-hidden [word-break:break-word] prose-headings:font-extrabold prose-headings:text-[#4D2A00] prose-p:text-[#4D2A00] prose-p:leading-relaxed prose-a:text-[#CC6F00] prose-a:font-bold prose-a:break-all prose-code:bg-[#F9E6A8]/30 prose-code:p-1 prose-code:rounded-md prose-code:break-all">
             <ReactMarkdown 
@@ -424,7 +595,57 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
           </div>
         )}
 
-        {/* Tab 2: Mermaid Flowchart Visualizer */}
+        {/* Tab 2: Comments Panel View */}
+        {activeTab === "comments" && (
+          <div className="h-full">
+            <CommentPanel
+              documentId={documentId}
+              workspaceId={workspaceId}
+              authToken={authToken}
+              currentUserId={currentUserId}
+            />
+          </div>
+        )}
+
+        {/* Tab 3: Tasks Panel View */}
+        {activeTab === "tasks" && (
+          <div className="h-full">
+            <TaskPanel
+              documentId={documentId}
+              workspaceId={workspaceId}
+              authToken={authToken}
+              currentUserId={currentUserId}
+            />
+          </div>
+        )}
+
+        {/* Tab 4: Versions Panel View */}
+        {activeTab === "versions" && (
+          <div className="h-full">
+            <VersionHistory
+              documentId={documentId}
+              workspaceId={workspaceId}
+              authToken={authToken}
+              onRestoreVersion={(newContent) => {
+                if (onDocumentUpdated) onDocumentUpdated(newContent);
+                setActiveTab("paper");
+              }}
+            />
+          </div>
+        )}
+
+        {/* Tab 5: AI Runs Panel View */}
+        {activeTab === "ai_runs" && (
+          <div className="h-full">
+            <AIRunPanel
+              documentId={documentId}
+              workspaceId={workspaceId}
+              authToken={authToken}
+            />
+          </div>
+        )}
+
+        {/* Tab 6: Flowchart Visualizer */}
         {activeTab === "diagrams" && (
           <div className="p-6 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl flex flex-col gap-4">
             <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
@@ -447,7 +668,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
           </div>
         )}
 
-        {/* Tab 3: Sources & Verified Citations */}
+        {/* Tab 7: Citations */}
         {activeTab === "citations" && (
           <div className="flex flex-col gap-3">
             <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
@@ -479,7 +700,7 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
           </div>
         )}
 
-        {/* Tab 4: Chat-with-Paper QA Assistant */}
+        {/* Tab 8: Chat QA Assistant */}
         {activeTab === "chat" && (
           <div className="flex flex-col gap-4 min-h-[350px]">
             <div className="flex-1 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto">
@@ -531,7 +752,43 @@ export default function PaperWorkspace({ report, topic }: PaperWorkspaceProps) {
             </form>
           </div>
         )}
+
       </div>
+
+      {/* Share Document Modal */}
+      <ShareDocumentModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        workspaceId={workspaceId}
+        documentTitle={topic}
+        isOwner={isOwner}
+        authToken={authToken}
+      />
+
+      {/* Collaborators / Team Drawer Panel */}
+      <CollaboratorPanel
+        isOpen={isCollaboratorPanelOpen}
+        onClose={() => setIsCollaboratorPanelOpen(false)}
+        workspaceId={workspaceId}
+        isOwner={isOwner}
+        currentUserId={currentUserId}
+        authToken={authToken}
+        onOpenShareModal={() => {
+          setIsCollaboratorPanelOpen(false);
+          setIsShareModalOpen(true);
+        }}
+      />
+
+      {/* Activity Feed Drawer Panel */}
+      {isActivityFeedOpen && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 shadow-2xl animate-in slide-in-from-right duration-200">
+          <ActivityFeed
+            workspaceId={workspaceId}
+            authToken={authToken}
+            onClose={() => setIsActivityFeedOpen(false)}
+          />
+        </div>
+      )}
 
     </div>
   );

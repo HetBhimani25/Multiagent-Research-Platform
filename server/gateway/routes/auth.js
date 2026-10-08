@@ -5,7 +5,11 @@ const { User } = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'my_super_secret_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) { throw new Error('JWT_SECRET must be configured'); }
+
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, });
 
 // Register User
 router.post('/register', async (req, res) => {
@@ -16,8 +20,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Please provide full name, email, and password.' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
     }
 
     // Check if email already exists
@@ -31,37 +35,23 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create User
-    const user = await User.create({
-      fullName: fullName.trim(),
-      email: email.toLowerCase().trim(),
-      password: hashedPassword,
-    });
+    const user = await User.create({ fullName: fullName.trim(), email: email.toLowerCase().trim(), password: hashedPassword, });
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign( { id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' } );
 
-    return res.status(201).json({
-      status: 'success',
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        createdAt: user.createdAt,
+    return res.status(201).json({ status: 'success', token, user: {
+        id: user.id, fullName: user.fullName, email: user.email, createdAt: user.createdAt,
       },
     });
   } catch (error) {
     console.error('Registration error:', error);
-    return res.status(500).json({ error: 'Failed to register user: ' + error.message });
+    return res.status(500).json({ error: 'Unable to complete registration.' });
   }
 });
 
 // Login User
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -82,20 +72,10 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = jwt.sign( { id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' } );
 
-    return res.json({
-      status: 'success',
-      token,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        createdAt: user.createdAt,
+    return res.json({ status: 'success', token, user: {
+        id: user.id, fullName: user.fullName, email: user.email, createdAt: user.createdAt,
       },
     });
   } catch (error) {
@@ -104,7 +84,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get Current User Profile (Me)
+// Get Current User Profile
 router.get('/me', verifyToken, async (req, res) => {
   return res.json({
     status: 'success',
@@ -122,8 +102,12 @@ router.post('/update-profile', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    if (fullName) {
-      user.fullName = fullName.trim();
+    if (fullName !== undefined) {
+      const normalizedName = fullName.trim();
+      if (normalizedName.length < 2 || normalizedName.length > 100) {
+        return res.status(400).json({ error: 'Full name must be between 2 and 100 characters.' });
+      }
+      user.fullName = normalizedName;
     }
 
     if (newPassword) {
@@ -134,8 +118,8 @@ router.post('/update-profile', verifyToken, async (req, res) => {
       if (!isMatch) {
         return res.status(401).json({ error: 'Incorrect current password.' });
       }
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
       }
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(newPassword, salt);
@@ -143,13 +127,8 @@ router.post('/update-profile', verifyToken, async (req, res) => {
 
     await user.save();
 
-    return res.json({
-      status: 'success',
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        createdAt: user.createdAt,
+    return res.json({ status: 'success', user: {
+        id: user.id, fullName: user.fullName, email: user.email, createdAt: user.createdAt,
       },
     });
   } catch (error) {

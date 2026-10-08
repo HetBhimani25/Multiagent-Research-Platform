@@ -6,6 +6,8 @@ class DocumentChunk(TypedDict):
     source_title: str
     text: str
     score: Optional[float]
+    workspace_id: Optional[str]
+    document_id: Optional[str]
 
 class ResearchState(TypedDict):
     question: str
@@ -25,3 +27,10 @@ class ResearchState(TypedDict):
     report: str
     status: str
     error: Optional[str]
+    # Document Filtration & Type Objective
+    doc_type: Optional[str]
+    # Multi-User Collaboration & Run Ownership
+    workspace_id: Optional[str]
+    document_id: Optional[str]
+    initiated_by: Optional[str]
+    run_id: Optional[str]

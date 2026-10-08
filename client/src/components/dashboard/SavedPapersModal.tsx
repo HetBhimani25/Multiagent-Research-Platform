@@ -10,6 +10,15 @@ export interface SavedPaper {
   createdAt: string;
   depth: string;
   format: string;
+  docType?: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  status?: string;
+  role?: string;
+  isOwner?: boolean;
+  owner?: { id: string; fullName: string; email: string };
+  collaboratorCount?: number;
+  members?: Array<{ id: string; userId: string; role: string; user?: { fullName: string } }>;
 }
 
 interface SavedPapersModalProps {
@@ -94,7 +103,12 @@ export default function SavedPapersModal({
                 className="p-4 bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-2xl hover:border-[#CC6F00] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    {paper.docType && (
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#F9E6A8] text-[#CC6F00] px-2 py-0.5 rounded-md border border-[#CC6F00]/30">
+                        {paper.docType.replace(/_/g, " ")}
+                      </span>
+                    )}
                     <span className="text-[10px] font-extrabold uppercase tracking-wider bg-[#F2A900] text-[#4D2A00] px-2 py-0.5 rounded-md border border-[#CC6F00]/30">
                       {paper.depth || "Deep"} Depth
                     </span>
@@ -167,10 +181,11 @@ export default function SavedPapersModal({
                 </button>
                 <button
                   onClick={() => {
-                    onDeletePaper(paperToDelete.id);
+                    const idToDelete = paperToDelete.id;
                     setPaperToDelete(null);
+                    onDeletePaper(idToDelete);
                   }}
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-md transition-all flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Yes, Delete Document</span>
