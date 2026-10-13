@@ -5,6 +5,7 @@ import {
   FileText, 
   PlusCircle, 
   Search, 
+  ChevronDown,
   Clock, 
   ArrowUpRight, 
   Trash2, 
@@ -163,30 +164,35 @@ export default function MyDocumentsView({
         </div>
 
         {/* Controls: Type Filter Dropdown & Search Bar */}
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <select
-            value={docTypeFilter}
-            onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="bg-white border-2 border-[#CC6F00]/30 rounded-2xl px-3 py-2 text-xs font-extrabold text-[#4D2A00] focus:outline-none focus:ring-2 focus:ring-[#F2A900] shadow-xs cursor-pointer"
-          >
-            <option value="ALL">All Document Types</option>
-            <option value="research_paper">Academic Research Paper</option>
-            <option value="technical_approach">Technical Approach & RFC</option>
-            <option value="system_design">System Architecture Blueprint</option>
-            <option value="comparative_analysis">Comparative Analysis & Benchmarks</option>
-            <option value="executive_summary">Executive Whitepaper</option>
-            <option value="literature_review">Literature Review & Survey</option>
-          </select>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-[280px]">
+            <select
+              value={docTypeFilter}
+              onChange={(e) => setDocTypeFilter(e.target.value)}
+              className="w-full appearance-none bg-white border-2 border-[#CC6F00]/30 rounded-2xl  pl-4 pr-10 py-3 text-xs font-extrabold text-[#4D2A00] focus:outline-none focus:ring-2 focus:ring-[#F2A900] shadow-xs cursor-pointer leading-5"
+            >
+              <option value="ALL">All Document Types</option>
+              <option value="research_paper">Academic Research Paper</option>
+              <option value="technical_approach">Technical Approach & RFC</option>
+              <option value="system_design">System Architecture Blueprint</option>
+              <option value="comparative_analysis">Comparative Analysis & Benchmarks</option>
+              <option value="executive_summary">Executive Whitepaper</option>
+              <option value="literature_review">Literature Review & Survey</option>
+            </select>
+
+            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4D2A00]" />
+
+          </div>
 
           {/* Search Bar */}
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 text-[#CC6F00] absolute left-3.5 top-3" />
+            <Search  aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CC6F00]" />
             <input
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
               placeholder="Search by topic or keywords..."
-              className="w-full bg-white border-2 border-[#CC6F00]/30 rounded-2xl pl-10 pr-4 py-2 text-xs font-semibold text-[#4D2A00] placeholder-[#4D2A00]/40 focus:outline-none focus:ring-2 focus:ring-[#F2A900] shadow-xs"
+              className="w-full box-border bg-white border-2 border-[#CC6F00]/30 rounded-2xl pl-10 pr-4 py-3 text-xs font-semibold text-[#4D2A00] placeholder-[#4D2A00]/40 focus:outline-none focus:ring-2 focus:ring-[#F2A900] shadow-xs leading-5" 
             />
           </div>
         </div>
@@ -214,9 +220,9 @@ export default function MyDocumentsView({
 
           <button
             onClick={onNavigateToGenerate}
-            className="mt-2 px-8 py-3.5 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-sm shadow-[0_12px_30px_rgba(204,111,0,0.35)] transition-all flex items-center gap-2 border-2 border-[#CC6F00]/40"
+            className="group mt-2 px-8 py-3.5 rounded-2xl bg-[#F2A900] hover:bg-[#CC6F00] text-[#4D2A00] hover:text-white font-extrabold text-sm shadow-[0_12px_30px_rgba(204,111,0,0.35)] transition-all duration-200 flex items-center justify-center gap-2 border-2 border-[#CC6F00]/40"
           >
-            <Sparkles className="w-4 h-4 text-[#CC6F00]" />
+            <Sparkles aria-hidden="true" className="w-4 h-4 shrink-0 text-[#CC6F00] group-hover:text-white" />
             <span>Generate Research Document</span>
           </button>
         </div>

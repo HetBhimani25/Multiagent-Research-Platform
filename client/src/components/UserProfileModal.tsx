@@ -10,13 +10,20 @@ interface UserProfileModalProps {
 }
 
 export default function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
-  const { user, token } = useAuth();
+  const { user, token, updateUser, handleTokensRotated } = useAuth();
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Sync state if user changes
+  React.useEffect(() => {
+    if (user?.fullName) {
+      setFullName(user.fullName);
+    }
+  }, [user?.fullName]);
 
   if (!isOpen || !user) return null;
 
@@ -28,13 +35,13 @@ export default function UserProfileModal({ isOpen, onClose }: UserProfileModalPr
 
     try {
       const res = await fetch("http://localhost:4000/api/auth/update-profile", {
-        method: "POST",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          fullName: fullName !== user.fullName ? fullName : undefined,
+          fullName: fullName !== user.fullName ? fullName.trim() : undefined,
           currentPassword: currentPassword || undefined,
           newPassword: newPassword || undefined,
         }),
@@ -42,9 +49,23 @@ export default function UserProfileModal({ isOpen, onClose }: UserProfileModalPr
 
       const data = await res.json();
       if (res.ok && data.status === "success") {
-        setStatusMsg("Profile updated successfully!");
+        setStatusMsg(data.message || "Profile updated successfully!");
         setCurrentPassword("");
         setNewPassword("");
+
+        // If new security tokens were issued after password change, rotate them
+        if (data.accessToken || data.token) {
+          handleTokensRotated({
+            accessToken: data.accessToken || data.token,
+            refreshToken: data.refreshToken,
+            user: data.user,
+          });
+        }
+
+        // Instantly update user profile in context so UI reflects changes
+        if (data.user) {
+          updateUser(data.user);
+        }
       } else {
         setErrorMsg(data.error || "Failed to update profile.");
       }
@@ -82,21 +103,16 @@ export default function UserProfileModal({ isOpen, onClose }: UserProfileModalPr
         <div className="p-6 flex flex-col gap-6">
           
           {/* Account Details Box */}
-          <div className="p-4 bg-[#F9E6A8]/30 border border-[#CC6F00]/20 rounded-2xl grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-[#4D2A00]/70 flex items-center gap-1.5 mb-1 font-bold">
-                <Calendar className="w-3.5 h-3.5 text-[#CC6F00]" /> Member Since
-              </span>
-              <p className="font-extrabold text-[#4D2A00]">
-                {new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </p>
-            </div>
-            <div>
-              <span className="text-[#4D2A00]/70 flex items-center gap-1.5 mb-1 font-bold">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#CC6F00]" /> Session Status
-              </span>
-              <p className="font-extrabold text-[#CC6F00]">JWT Verified (7 Days)</p>
-            </div>
+          <div className="p-3 bg-[#F9E6A8]/30 border border-[#CC6F00]/20 rounded-2xl flex items-center gap-3 text-sm">
+            <span className="text-[#4D2A00]/70 flex items-center gap-1.5 font-bold whitespace-nowrap">
+              <Calendar className="w-4 h-4 text-[#CC6F00]" /> Member Since
+            </span>
+
+            <p className="font-bold text-[#4D2A00] whitespace-nowrap">
+              {new Date(user.createdAt).toLocaleDateString("en-US", {
+                month: "short", day: "numeric", year: "numeric",
+              })}
+            </p>
           </div>
 
           {/* Update Profile Form */}

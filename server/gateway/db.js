@@ -1,5 +1,6 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const host = process.env.POSTGRES_HOST || 'localhost';
@@ -23,21 +24,73 @@ const sequelize = new Sequelize(database, user, password, {
     acquire: 30000, //30,000 milliseconds = 30 seconds used in connection waitlist
     idle: 10000, //10000 milliseconds = 10 seconds Sequelize can remove it from the pool after no use till 10 seconds
   },
-  //  dialectOptions: {
-    // Enable SSL in production if your PostgreSQL server requires it.
-    // ssl: { require: true, rejectUnauthorized: true, },
-  // }, This is particularly relevant when PostgreSQL database is hosted remotely/cloud-hosted
 });
 
 // 1. User Model
 const User = sequelize.define('User', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  fullName: { type: DataTypes.STRING(100), allowNull: false,  validate: { notEmpty: true, len: [2, 100], }, },
-  email: { type: DataTypes.STRING(255), allowNull: false, unique: true, set(value) {
-        this.setDataValue('email', value.trim().toLowerCase());
-      }, validate: { isEmail: true, }, },
-  password: { type: DataTypes.STRING(255), allowNull: false, },
-}, { tableName: 'users', timestamps: true, });
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  fullName: {
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [2, 100],
+    },
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: true,
+    set(value) {
+      this.setDataValue('email', value ? value.trim().toLowerCase() : value);
+    },
+    validate: {
+      isEmail: true,
+    },
+  },
+  password: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+  },
+  tokenVersion: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+  },
+}, {
+  tableName: 'users',
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+        const salt = await bcrypt.genSalt(12);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password') && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+        const salt = await bcrypt.genSalt(12);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+  },
+});
+
+// Instance method to safely validate password
+User.prototype.validatePassword = async function(plainPassword) {
+  return bcrypt.compare(plainPassword, this.password);
+};
+
+// Automatically strip password hash from JSON responses
+User.prototype.toJSON = function () {
+  const values = Object.assign({}, this.get());
+  delete values.password;
+  return values;
+};
 
 // 2. ResearchDocument Model
 const ResearchDocument = sequelize.define('ResearchDocument', { 
@@ -484,7 +537,58 @@ const DocumentLock = sequelize.define('DocumentLock', {
   updatedAt: false,
 });
 
+// 13. RefreshToken Model
+const RefreshToken = sequelize.define('RefreshToken', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id',
+    },
+    onDelete: 'CASCADE',
+  },
+  tokenHash: {
+    type: DataTypes.STRING(128),
+    allowNull: false,
+    unique: true,
+  },
+  expiresAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  revoked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+  },
+  replacedByToken: {
+    type: DataTypes.STRING(128),
+    allowNull: true,
+  },
+  family: {
+    type: DataTypes.STRING(64),
+    allowNull: true,
+  },
+}, {
+  tableName: 'refresh_tokens',
+  timestamps: true,
+  indexes: [
+    { fields: ['userId'] },
+    { fields: ['tokenHash'], unique: true },
+    { fields: ['revoked'] },
+  ],
+});
+
 // ── Relationships & Associations ──
+User.hasMany(RefreshToken, { as: 'refreshTokens', foreignKey: 'userId', onDelete: 'CASCADE' });
+RefreshToken.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+
 ResearchDocument.belongsTo(User, { as: 'owner', foreignKey: 'ownerId' });
 ResearchDocument.hasOne(ResearchWorkspace, { as: 'workspace', foreignKey: 'documentId' });
 ResearchWorkspace.belongsTo(ResearchDocument, { as: 'document', foreignKey: 'documentId' });
@@ -528,6 +632,7 @@ const initDB = async () => {
 module.exports = {
   sequelize,
   User,
+  RefreshToken,
   ResearchDocument,
   ResearchWorkspace,
   WorkspaceMember,

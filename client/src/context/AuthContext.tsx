@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
-interface User {
+export interface User {
   id: string;
   fullName: string;
   email: string;
@@ -12,10 +12,14 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  updateUser: (updatedUser: Partial<User>) => void;
+  handleTokensRotated: (tokens: { accessToken: string; refreshToken?: string; user?: User }) => void;
+  refreshAccessToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,19 +27,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Verify stored token on load
-  useEffect(() => {
-    const savedToken = localStorage.getItem("auth_token");
-    if (savedToken) {
-      fetchUserProfile(savedToken);
-    } else {
-      setLoading(false);
-    }
+  const clearSession = useCallback(() => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("researchflow_saved_papers");
+    localStorage.removeItem("rf_theme");
+    setUser(null);
+    setToken(null);
+    setRefreshToken(null);
   }, []);
 
-  const fetchUserProfile = async (authToken: string) => {
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    const storedRefreshToken = localStorage.getItem("refresh_token");
+    if (!storedRefreshToken) {
+      clearSession();
+      return null;
+    }
+
+    try {
+      const res = await fetch("http://localhost:4000/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        clearSession();
+        return null;
+      }
+
+      const data = await res.json();
+      if (data.status === "success" && (data.accessToken || data.token)) {
+        const newAccessToken = data.accessToken || data.token;
+        const newRefreshToken = data.refreshToken || storedRefreshToken;
+
+        localStorage.setItem("auth_token", newAccessToken);
+        if (data.refreshToken) {
+          localStorage.setItem("refresh_token", newRefreshToken);
+        }
+
+        setToken(newAccessToken);
+        setRefreshToken(newRefreshToken);
+        if (data.user) {
+          setUser(data.user);
+        }
+
+        return newAccessToken;
+      }
+
+      clearSession();
+      return null;
+    } catch (e) {
+      clearSession();
+      return null;
+    }
+  }, [clearSession]);
+
+  const fetchUserProfile = useCallback(async (authToken: string) => {
     try {
       const res = await fetch("http://localhost:4000/api/auth/me", {
         headers: {
@@ -48,26 +99,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.status === "success") {
           setUser(data.user);
           setToken(authToken);
+          setRefreshToken(localStorage.getItem("refresh_token"));
           return;
         }
       }
 
-      // If token invalid or user removed from DB, reset entire session cleanly
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("researchflow_saved_papers");
-      localStorage.removeItem("rf_theme");
-      setUser(null);
-      setToken(null);
+      // If token expired (401), attempt silent token refresh
+      const refreshedToken = await refreshAccessToken();
+      if (refreshedToken) {
+        const retryRes = await fetch("http://localhost:4000/api/auth/me", {
+          headers: { Authorization: `Bearer ${refreshedToken}` },
+        }).catch(() => null);
+
+        if (retryRes && retryRes.ok) {
+          const retryData = await retryRes.json();
+          if (retryData.status === "success") {
+            setUser(retryData.user);
+            setToken(refreshedToken);
+            return;
+          }
+        }
+      }
+
+      // If refresh also failed, clear session
+      clearSession();
     } catch (err) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("researchflow_saved_papers");
-      localStorage.removeItem("rf_theme");
-      setUser(null);
-      setToken(null);
+      clearSession();
     } finally {
       setLoading(false);
     }
-  };
+  }, [clearSession, refreshAccessToken]);
+
+  // Verify stored token on load
+  useEffect(() => {
+    const savedToken = localStorage.getItem("auth_token");
+    if (savedToken) {
+      fetchUserProfile(savedToken);
+    } else {
+      setLoading(false);
+    }
+  }, [fetchUserProfile]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -82,9 +153,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const data = await res.json();
-      if (res.ok && data.token) {
-        localStorage.setItem("auth_token", data.token);
-        setToken(data.token);
+      if (res.ok && (data.accessToken || data.token)) {
+        const accessToken = data.accessToken || data.token;
+        const incomingRefreshToken = data.refreshToken;
+
+        localStorage.setItem("auth_token", accessToken);
+        if (incomingRefreshToken) {
+          localStorage.setItem("refresh_token", incomingRefreshToken);
+        }
+
+        setToken(accessToken);
+        setRefreshToken(incomingRefreshToken || null);
         setUser(data.user);
         return { success: true };
       } else {
@@ -108,9 +187,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const data = await res.json();
-      if (res.ok && data.token) {
-        localStorage.setItem("auth_token", data.token);
-        setToken(data.token);
+      if (res.ok && (data.accessToken || data.token)) {
+        const accessToken = data.accessToken || data.token;
+        const incomingRefreshToken = data.refreshToken;
+
+        localStorage.setItem("auth_token", accessToken);
+        if (incomingRefreshToken) {
+          localStorage.setItem("refresh_token", incomingRefreshToken);
+        }
+
+        setToken(accessToken);
+        setRefreshToken(incomingRefreshToken || null);
         setUser(data.user);
         return { success: true };
       } else {
@@ -122,15 +209,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("researchflow_saved_papers");
-    localStorage.removeItem("rf_theme");
-    setToken(null);
-    setUser(null);
+    const currentRefreshToken = localStorage.getItem("refresh_token") || refreshToken;
+    const currentToken = localStorage.getItem("auth_token") || token;
+
+    // Send best-effort logout notification to server to revoke refresh tokens
+    fetch("http://localhost:4000/api/auth/logout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
+      },
+      body: JSON.stringify({ refreshToken: currentRefreshToken }),
+    }).catch(() => {});
+
+    clearSession();
+  };
+
+  const updateUser = (updatedUser: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedUser } : null));
+  };
+
+  const handleTokensRotated = (tokens: { accessToken: string; refreshToken?: string; user?: User }) => {
+    localStorage.setItem("auth_token", tokens.accessToken);
+    setToken(tokens.accessToken);
+
+    if (tokens.refreshToken) {
+      localStorage.setItem("refresh_token", tokens.refreshToken);
+      setRefreshToken(tokens.refreshToken);
+    }
+
+    if (tokens.user) {
+      setUser(tokens.user);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        refreshToken,
+        loading,
+        login,
+        register,
+        logout,
+        updateUser,
+        handleTokensRotated,
+        refreshAccessToken,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

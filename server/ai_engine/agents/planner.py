@@ -83,7 +83,7 @@ def get_default_queries_by_type(topic: str, doc_type: str) -> list:
 
 def run_planner(state: ResearchState) -> dict:
     """Agent 1: Planner Agent
-    Decomposes complex research topics into 3–5 targeted search sub-queries tailored to the chosen document type.
+    Decomposes complex research topics into 3-5 targeted search sub-queries tailored to the chosen document type.
     """
     raw_question = state.get("question", "")
     topic = clean_topic_prompt(raw_question)

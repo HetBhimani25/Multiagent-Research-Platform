@@ -165,7 +165,7 @@ export default function ResearchInputConsole({
         <div className="flex items-center justify-between mb-2.5">
           <label className="text-xs font-black uppercase tracking-wider text-[#4D2A00] flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#CC6F00]"></span>
-            Select Document Type & Objective (Filtration):
+            Select Document Type & Objective :
           </label>
           <span className="text-[10px] font-bold text-[#CC6F00]">
             Customizes structure, tone & flowchart
@@ -365,10 +365,19 @@ export default function ResearchInputConsole({
         </div>
 
         {/* Action Button Row */}
-        <div className="flex items-center justify-between pt-4 border-t-2 border-[#CC6F00]/20 flex-wrap gap-4">
+        <div className="flex items-center justify-between pt-4 border-t-2 border-[#CC6F00]/20 flex-wrap gap-4">         
           <div className="text-xs font-bold text-[#CC6F00] flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#F2A900]" />
-            <span>Ready to generate {DOCUMENT_TYPES.find(d => d.id === docType)?.name} via 10-Agent pipeline</span>
+            <Sparkles className="w-4 h-4 text-[#F2A900] shrink-0" />
+            <span>
+              Ready to generate{" "}
+              {DOCUMENT_TYPES.find((d) => d.id === docType)?.name} via{" "}
+              {researchDepth === "fast"
+                ? "3-Agent Direct"
+                : researchDepth === "balanced"
+                ? "7-Agent Balanced"
+                : "10-Agent Deep Research"}{" "}
+              pipeline
+            </span>
           </div>
 
           <button

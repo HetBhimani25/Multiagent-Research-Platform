@@ -63,15 +63,15 @@ export default function SidebarDrawer({
       highlight: true,
     },
     {
+      id: "rag_assistant" as DashboardView,
+      label: "Document RAG Assistant",
+      icon: Bot,
+    },
+    {
       id: "collaboration" as DashboardView,
       label: "Collaborative Workspaces",
       icon: Users,
       badge: "Multi-User",
-    },
-    {
-      id: "rag_assistant" as DashboardView,
-      label: "Document RAG Assistant",
-      icon: Bot,
     },
     {
       id: "metrics" as DashboardView,

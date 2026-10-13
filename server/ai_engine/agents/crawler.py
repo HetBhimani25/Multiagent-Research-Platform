@@ -7,16 +7,12 @@ def clean_html_content(raw_html: str) -> str:
     """Strips boilerplate tags (nav, header, footer, script, style, ads) and extracts clean text."""
     try:
         soup = BeautifulSoup(raw_html, "html.parser")
-        # Remove useless script, style, nav, header, footer tags
         for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside", "form"]):
             element.decompose()
-        
         text = soup.get_text(separator=" ")
-        # Clean up consecutive whitespaces
         clean_text = re.sub(r'\s+', ' ', text).strip()
         return clean_text
     except Exception:
-        # Regex fallback if BeautifulSoup encounters an error
         clean = re.sub(r'<script.*?>.*?</script>', '', raw_html, flags=re.DOTALL)
         clean = re.sub(r'<style.*?>.*?</style>', '', clean, flags=re.DOTALL)
         clean = re.sub(r'<[^>]+>', ' ', clean)

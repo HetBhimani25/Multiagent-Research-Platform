@@ -99,7 +99,6 @@ async def run_research_pipeline(
     graph = build_research_graph(depth=depth)
     final_state = await graph.ainvoke(initial_state)
 
-    # Bulletproof fallback: guarantee report is never empty if cited_report or draft_report was produced
     if not final_state.get("report"):
         final_state["report"] = final_state.get("cited_report") or final_state.get("draft_report") or ""
 
