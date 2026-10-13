@@ -31,3 +31,10 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Database & Runtime Cache
+*.sqlite
+*.sqlite3
+*.db
+server/ai_engine/data/
+

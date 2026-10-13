@@ -3,28 +3,40 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-const host = process.env.POSTGRES_HOST || 'localhost';
-const port = process.env.POSTGRES_PORT || 5432;
-const user = process.env.POSTGRES_USER || 'postgres';
-const password = process.env.POSTGRES_PASSWORD;
-const database = process.env.POSTGRES_DB || 'research_db';
+const dbDialect = (process.env.DB_DIALECT || 'sqlite').toLowerCase();
+let sequelize;
 
-if (!password) {
-  throw new Error('POSTGRES_PASSWORD is not configured');
+if (dbDialect === 'postgres') {
+  const host = process.env.POSTGRES_HOST || 'localhost';
+  const port = process.env.POSTGRES_PORT || 5432;
+  const user = process.env.POSTGRES_USER || 'postgres';
+  const password = process.env.POSTGRES_PASSWORD;
+  const database = process.env.POSTGRES_DB || 'research_db';
+
+  if (!password) {
+    throw new Error('POSTGRES_PASSWORD is not configured for PostgreSQL dialect');
+  }
+
+  sequelize = new Sequelize(database, user, password, {
+    host: host,
+    port: port,
+    dialect: 'postgres',
+    logging: false,
+    pool: {
+      max: 10,
+      min: 1,
+      acquire: 30000,
+      idle: 10000,
+    },
+  });
+} else {
+  const dbPath = process.env.SQLITE_PATH || path.resolve(__dirname, 'research_platform.sqlite');
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: dbPath,
+    logging: false,
+  });
 }
-
-const sequelize = new Sequelize(database, user, password, {
-  host: host,
-  port: port,
-  dialect: 'postgres',
-  logging: false, // It won't prints SQL queries to the console -> it's reverse logging: console.log
-  pool: {
-    max: 10,
-    min: 1,
-    acquire: 30000, //30,000 milliseconds = 30 seconds used in connection waitlist
-    idle: 10000, //10000 milliseconds = 10 seconds Sequelize can remove it from the pool after no use till 10 seconds
-  },
-});
 
 // 1. User Model
 const User = sequelize.define('User', {
@@ -621,11 +633,15 @@ DocumentLock.belongsTo(User, { as: 'user', foreignKey: 'lockedBy' });
 const initDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log('PostgreSQL database connected successfully via Sequelize.');
-    await sequelize.sync({ alter: true });
+    console.log(`Database (${dbDialect}) connected successfully via Sequelize.`);
+    if (dbDialect === 'postgres') {
+      await sequelize.sync({ alter: true });
+    } else {
+      await sequelize.sync();
+    }
     console.log('All collaboration database models synchronized.');
   } catch (error) {
-    console.error('PostgreSQL connection error:', error.message);
+    console.error(`Database (${dbDialect}) connection error:`, error.message);
   }
 };
 
