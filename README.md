@@ -1,542 +1,528 @@
 <div align="center">
 
 # 🧠 ResearchFlow AI
-### Autonomous Multi-Agent Research & Real-Time Collaborative Paper Workspace Platform
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/AI%20Engine-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Express.js](https://img.shields.io/badge/Gateway-Express%205-000000?style=for-the-badge&logo=express)](https://expressjs.com/)
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-FF6F00?style=for-the-badge&logo=chainlink)](https://www.langchain.com/langgraph)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2B%20pgvector-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+### Multi-Agent Research Automation & Collaborative Document Workspace
 
-<p align="center">
-  <b>An enterprise-grade, stateful multi-agent literature research engine and real-time co-authoring workspace that autonomously plans, searches, crawls, chunks, vector-indexes, reasons, synthesizes, cites, critiques, and diagrams academic papers and technical specifications.</b>
-</p>
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/AI%20Engine-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Express](https://img.shields.io/badge/API-Express-333333?style=flat-square&logo=express)](https://expressjs.com/)
+[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-FF6F00?style=flat-square)](https://www.langchain.com/langgraph)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+
+**Plan research, discover sources, generate structured drafts, and organize documents in one workspace.**
+
+ResearchFlow AI combines a Next.js application, an Express API, and a LangGraph-powered Python research engine. It supports configurable research depth, six document objectives, source discovery, report generation, and PostgreSQL-backed document management. The repository also includes components and API modules for collaborative research workflows.
 
 </div>
 
----
+> **Project status:** Active development. Some collaboration, security, export, and infrastructure capabilities described below require verification against the complete repository before they should be considered production-ready. Generated research is a draft and must be reviewed before academic or professional use.
 
-## 📑 Table of Contents
+<!-- Add actual application screenshots or a short demo GIF here.
+![ResearchFlow AI dashboard](docs/screenshots/dashboard.png)
+-->
 
-- [Overview & Problem Statement](#-overview--problem-statement)
-- [System Architecture (4-Tier Distributed Topology)](#-system-architecture-4-tier-distributed-topology)
-- [The 10-Agent Autonomous Pipeline (LangGraph)](#-the-10-agent-autonomous-pipeline-langgraph)
-- [Pipeline Execution Depths](#-pipeline-execution-depths)
-- [Target Document Filtration System](#-target-document-filtration-system)
-- [Enterprise Dual-Token Authentication & Security](#-enterprise-dual-token-authentication--security)
-- [Collaborative Research Workspace & RBAC](#-collaborative-research-workspace--rbac)
-- [Export Formats & Visualization](#-export-formats--visualization)
-- [PostgreSQL Database Architecture (13 Tables)](#-postgresql-database-architecture-13-tables)
-- [Project Directory Structure](#-project-directory-structure)
-- [Installation & Quickstart Guide](#-installation--quickstart-guide)
-- [API Reference](#-api-reference)
-- [Verification & Automated Test Suite](#-verification--automated-test-suite)
+## Contents
 
----
+- [Overview](#overview)
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [Research Pipeline](#research-pipeline)
+- [Research Depths](#research-depths)
+- [Document Types](#document-types)
+- [Document Management and Collaboration](#document-management-and-collaboration)
+- [Authentication and Security](#authentication-and-security)
+- [Data Model](#data-model)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [API Reference](#api-reference)
+- [Testing and Verification](#testing-and-verification)
+- [Known Limitations](#known-limitations)
+- [Roadmap](#roadmap)
+- [License](#license)
 
-## 🔬 Overview & Problem Statement
+## Overview
 
-Modern academic research and technical design workflows face three critical bottlenecks:
-1. **Search Fragmentation & Hallucination**: Manual literature reviews require sifting through dozens of search tabs. Raw generative LLMs often hallucinate facts and invent false academic references.
-2. **Lack of Structured Synthesis**: Raw prompts produce shallow overviews rather than structured, publication-grade academic papers or technical RFC specifications with diagrams and verified citations.
-3. **Siloed Co-Authoring**: Once generated, research remains static and isolated, lacking team collaboration, granular role permissions, section locking, inline comments, and task assignment.
+ResearchFlow AI is designed to reduce the manual work involved in gathering web sources, organizing evidence, and drafting technical or academic research documents.
 
-### The ResearchFlow AI Solution
-**ResearchFlow AI** solves this by uniting a **Stateful LangGraph 10-Agent Pipeline** with a **Real-Time PostgreSQL Collaborative Workspace**:
-- **Autonomous Investigation**: Decomposes complex queries into targeted search sub-queries, scrapes live web pages, strips boilerplate HTML, breaks content into 800-character semantic chunks, and ranks evidence using cosine vector similarity.
-- **Architectural Synthesis**: Synthesizes verified technical insights and renders domain-specific blueprints with embedded **Mermaid.js flowcharts** and verified external citations.
-- **Real-Time Collaboration**: Automatically creates private workspaces where document owners can invite colleagues as **Editors, Researchers, Reviewers, or Viewers** with section locking, threaded discussions, version history, and real-time WebSocket presence.
+The workflow begins with a topic, document type, and research depth. A LangGraph workflow then coordinates research stages, producing a Markdown report and, where applicable, a Mermaid diagram. The frontend displays the result and submits it to the Express document API for persistence.
 
----
+**Core capabilities represented in the reviewed code:**
 
-## 🏛️ System Architecture (4-Tier Distributed Topology)
+- Configurable **Fast**, **Balanced**, and **Deep** research workflows.
+- Topic-specific query planning and web search with Tavily.
+- Web content extraction using BeautifulSoup for workflows that include crawling.
+- Modular processing stages for chunking, retrieval, reasoning, writing, citation formatting, review, and diagrams.
+- Six document-generation objectives.
+- Document listing, creation, and deletion through the Express API, with authenticated requests from the frontend.
+- A frontend document workspace and collaboration-related interface components.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           1. CLIENT FRONTEND LAYER                          │
-│           Next.js 16 (App Router) • React 19 • Tailwind CSS v4             │
-│   • Research Console            • Real-time Agent Pipeline Tracker          │
-│   • Interactive Reader          • Collaborative Workspace Drawer            │
-│   • Threaded Comments / Tasks   • Live Mermaid.js Flowchart Rendering       │
-└──────────────────────┬───────────────────────────────▲──────────────────────┘
-                       │ HTTP / SSE / REST             │ WebSocket (Socket.io)
-                       ▼                               │
-┌──────────────────────────────────────────────┐       │
-│         2. BACKEND GATEWAY LAYER             │       │
-│          Node.js • Express 5                 │       │
-│  • Dual-Token Auth (15m Access / 7d Refresh) │       │
-│  • Role-Based Access Control (RBAC)          │       │
-│  • Zod Request Validation & Rate Limiting    │───────┘
-│  • Sequelize ORM Database Transactions       │
-│  • Document & Workspace Management APIs      │
-└──────────────┬───────────────────────────────┘
-               │ Internal Forwarding / IPC
-               ▼
-┌──────────────────────────────────────────────┐       ┌──────────────────────┐
-│            3. AI RESEARCH ENGINE             │       │ 4. DATABASE & STATE  │
-│        Python 3.11+ • FastAPI                │       │     PostgreSQL 16    │
-│  • LangGraph Stateful Workflow Graph (DAG)   │──────▶│  • 13 Core Tables    │
-│  • 10 Autonomous Pipeline Agents             │       │  • pgvector Indexing │
-│  • Groq LPU Ultra-Low Latency Inference      │       │  • Relational Graphs │
-│  • Tavily Web Search & HTML Cleansing        │       │  • BullMQ / Redis    │
-└──────────────────────────────────────────────┘       └──────────────────────┘
-```
+> **Implementation note:** The complete Express gateway, all agent modules, export components, and collaboration modules have not been independently audited for this README revision. Their presence in the original project documentation is not proof that every behavior is fully implemented or secure.
 
----
+## Technology Stack
 
-## 🤖 The 10-Agent Autonomous Pipeline (LangGraph)
+| Layer | Technologies | Purpose |
+|---|---|---|
+| Frontend | Next.js, React, TypeScript, Tailwind CSS | Research console, document views, workspace interface |
+| Application API | Node.js, Express, Sequelize | Authentication, documents, workspace APIs, database access |
+| Research API | Python, FastAPI, Pydantic | Research request handling and workflow execution |
+| Agent orchestration | LangGraph | Shared research state and ordered workflow execution |
+| Research services | Groq, Tavily, BeautifulSoup | Model inference, web search, and HTML text extraction |
+| Data storage | PostgreSQL | Users, documents, and collaboration-related records |
+| Visualization | Mermaid.js | Research and architecture diagrams |
 
-The AI engine executes as a stateful Directed Acyclic Graph (DAG) powered by **LangGraph**:
+**Optional or unverified infrastructure:** Redis/BullMQ and PostgreSQL `pgvector` were mentioned in earlier project documentation, but their runtime use was not established by the reviewed code. They are not listed as required dependencies here.
+
+## Architecture
 
 ```mermaid
-graph TD
-    Start([User Query Prompt]) --> Agent1[1. Planner Agent]
-    Agent1 --> Agent2[2. Searcher Agent]
-    Agent2 --> Agent3[3. Crawler Agent]
-    Agent3 --> Agent4[4. Chunker Agent]
-    Agent4 --> Agent5[5. Vector RAG Agent]
-    Agent5 --> Agent6[6. Reasoner Agent]
-    Agent6 --> Agent7[7. Writer Agent]
-    Agent7 --> Agent8[8. Citation Agent]
-    Agent8 --> Agent9[9. Reviewer Agent]
-    Agent9 --> Agent10[10. Diagram Agent]
-    Agent10 --> FinalDoc([Publication-Ready Research Paper])
-
-    style Start fill:#F9E6A8,stroke:#CC6F00,stroke-width:2px;
-    style FinalDoc fill:#F2A900,stroke:#4D2A00,stroke-width:2px;
+flowchart TB
+    U[Researcher] --> UI[Next.js Frontend]
+    UI -->|Authenticated document requests| API[Express API :4000]
+    UI -->|Research request| AI[FastAPI Research Engine :8000]
+    API --> DB[(PostgreSQL)]
+    AI --> LG[LangGraph Research Workflow]
+    LG --> GROQ[Groq Model API]
+    LG --> TAVILY[Tavily Search API]
+    LG --> WEB[Public Web Sources]
+    AI -->|Generated research state| UI
+    UI -->|Save generated document| API
 ```
 
-| # | Agent Name | Implementation File | Primary Responsibility |
-|:---:|:---|:---|:---|
-| **1** | **Planner Agent** | `agents/planner.py` | Strips prompt noise and decomposes queries into 3–5 specialized sub-queries tailored to the chosen document type. |
-| **2** | **Searcher Agent** | `agents/searcher.py` | Queries Tavily Search API across web sources, whitepapers, and arXiv preprints. |
-| **3** | **Crawler Agent** | `agents/crawler.py` | Scrapes raw HTML and uses BeautifulSoup to purge scripts, styles, advertisements, navigation bars, and footers. |
-| **4** | **Chunker Agent** | `agents/chunker.py` | Segments extracted text into ~800-character semantic chunks with 100-character overlap at sentence boundaries. |
-| **5** | **Vector RAG Agent** | `agents/vector_rag.py` | Performs vector indexing and cosine similarity scoring against the topic, returning the top-5 contextual evidence snippets. |
-| **6** | **Reasoner Agent** | `agents/reasoner.py` | Analyzes evidence to extract core architectural trade-offs, network constraints, and failure modes. |
-| **7** | **Writer Agent** | `agents/writer.py` | Drafts the full paper in Markdown adhering strictly to domain-specific blueprints and structural outlines. |
-| **8** | **Citation Agent** | `agents/citation.py` | Audits factual claims, maps external URLs, and constructs an IEEE-compliant `## References` section. |
-| **9** | **Reviewer Agent** | `agents/reviewer.py` | Performs automated peer review, verifying required section headings and evaluating structural completeness (score 0–100). |
-| **10** | **Diagram Agent** | `agents/diagram.py` | Synthesizes system components and embeds interactive, horizontal **Mermaid.js** architecture flowcharts into the document. |
+**Current integration detail:** In the reviewed frontend, the browser calls the FastAPI research endpoint directly, then sends the generated document to Express for storage. This is **not** an Express-to-FastAPI internal proxy architecture. Production deployments should protect the research API and use environment-specific service URLs.
 
----
+### Research request lifecycle
 
-## ⚡ Pipeline Execution Depths
+1. The user selects a research topic, document type, depth, and preferred output format.
+2. The frontend sends `question`, `depth`, `doc_type`, and `initiated_by` to the FastAPI research endpoint.
+3. FastAPI invokes the selected LangGraph workflow.
+4. The workflow returns research state containing the generated report and other available outputs.
+5. The frontend displays the report and, when an authenticated session is available, sends the report to the Express document API.
+6. The Express API handles document persistence and associated workspace data according to its implementation.
 
-Users can adjust research depth to balance speed and analytical rigor:
+The output-format selection is passed to the document-saving API in the reviewed frontend; generation of a PDF or `.tex` file must be verified in the corresponding export component.
 
-- 🚀 **Fast (3 Agents • Direct)**:
-  - Pipeline: `Planner` ➔ `Searcher` ➔ `Writer` ➔ `Diagram` ➔ `END`
-  - *Best for*: Instant overviews, executive briefs, rapid technical lookups.
-- ⚖️ **Balanced (8 Agents • 1 Loop)**:
-  - Pipeline: `Planner` ➔ `Searcher` ➔ `Crawler` ➔ `Chunker` ➔ `Vector RAG` ➔ `Reasoner` ➔ `Writer` ➔ `Citation` ➔ `Diagram` ➔ `END`
-  - *Best for*: Detailed technical approaches, system design specs, architectural RFCs.
-- 🎓 **Deep Academic (10 Agents • Full Loop)**:
-  - Pipeline: Full 10 Agents including the `Reviewer Agent` critique loop.
-  - *Best for*: Full academic literature surveys, benchmark evaluations, publication drafts.
+## Research Pipeline
 
----
-
-## 🎯 Target Document Filtration System
-
-The platform dynamically shapes planning sub-queries, writer templates, and diagram topologies across **6 distinct document objectives**:
-
-```
-Document Types
-├── 📄 Research Paper ("research_paper")
-│   └── Abstract, Introduction, Problem Formulation, Algorithmic Design, Empirical Findings, References
-├── 🛠️ Technical Approach ("technical_approach")
-│   └── Executive Summary, Non-Goals, System Architecture, Core Protocols, Security & Isolation, Deployment Plan
-├── 📐 System Design Blueprint ("system_design")
-│   └── Architectural Overview, Component Topology, Data Models & Storage, Concurrency & HA, Observability
-├── 📊 Comparative Analysis & Benchmarks ("comparative_analysis")
-│   └── Evaluation Scope, Feature Comparison Matrix Table, Latency/Throughput Trade-offs, Decision Matrix
-├── 💼 Executive Whitepaper ("executive_summary")
-│   └── Strategic Context, Market Drivers, Core Solution Architecture, Enterprise ROI & Productivity
-└── 📚 Literature Review ("literature_review")
-    └── Survey Scope, Taxonomic Classification, Milestone Evolution, Synthesis of Approaches, Open Horizons
-```
-
----
-
-## 🛡️ Enterprise Dual-Token Authentication & Security
-
-The platform implements an **industry-standard Dual-Token JWT Architecture**:
+The Python research engine registers **10 workflow nodes**. Not every node executes at every depth.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Researcher Browser
-    participant Gateway as Express Gateway (Port 4000)
-    participant Middleware as authMiddleware.js
-    participant DB as PostgreSQL (research_db)
-
-    Note over User,DB: 1. Login / Registration
-    User->>Gateway: POST /api/auth/login (Zod validated, Rate limited)
-    Gateway->>DB: User lookup & bcrypt.compare
-    Gateway->>DB: Store SHA-256 hash in refresh_tokens table (7d)
-    Gateway-->>User: { accessToken (15m, sub: user.id), refreshToken (7d) }
-
-    Note over User,DB: 2. Authenticated API Calls
-    User->>Gateway: GET /api/auth/me (Bearer <accessToken>)
-    Gateway->>Middleware: verifyToken() checks signature, HS256, expiration
-    Middleware->>DB: Query user (projecting id, fullName, email, tokenVersion)
-    Middleware-->>Gateway: req.user context attached
-    Gateway-->>User: 200 OK { user }
-
-    Note over User,DB: 3. Token Rotation (Silent Refresh)
-    User->>Gateway: POST /api/auth/refresh { refreshToken }
-    alt Replay Attack Detected (revoked = true)
-        Gateway->>DB: Revoke all refresh tokens for userId (Session Terminated)
-        Gateway-->>User: 401 Security Alert
-    else Valid Refresh Token
-        Gateway->>DB: Mark old token revoked: true, link replacedByToken
-        Gateway->>DB: Insert new rotated refresh token (7d)
-        Gateway-->>User: { accessToken (new 15m), refreshToken (new 7d) }
-    end
-
-    Note over User,DB: 4. Password Change Security Invalidation
-    User->>Gateway: PATCH /api/auth/update-profile { currentPassword, newPassword }
-    Gateway->>DB: Verify old password & hash new password (bcrypt salt 12)
-    Gateway->>DB: Revoke all active refresh tokens & increment user.tokenVersion (+1)
-    Gateway-->>User: { accessToken (new tokenVersion), refreshToken (new) }
-    Note over Gateway,DB: Old access tokens with outdated tokenVersion immediately fail with 401!
+flowchart TD
+    START([Research Topic]) --> P[Planner]
+    P --> S[Searcher]
+    S --> MODE{Research Depth}
+    MODE -->|Fast| W[Writer]
+    MODE -->|Balanced or Deep| C[Crawler]
+    C --> CH[Chunker]
+    CH --> RAG[Retrieval]
+    RAG --> R[Reasoner]
+    R --> W
+    W --> ROUTE{Research Depth}
+    ROUTE -->|Fast| D[Diagram]
+    ROUTE -->|Balanced or Deep| CIT[Citation]
+    CIT --> REVIEW{Deep?}
+    REVIEW -->|No| D
+    REVIEW -->|Yes| RV[Reviewer]
+    RV --> D
+    D --> END([Generated Research Draft])
 ```
 
-### Key Security Safeguards
-- **Short-Lived Access Token (15 mins)**: Contains standard `sub: user.id` and `tokenVersion`. Does not expose user email.
-- **Long-Lived Rotating Refresh Token (7 days)**: 40-byte cryptographically random hex token stored as a SHA-256 hash in PostgreSQL.
-- **Replay & Reuse Detection**: Replaying an already-rotated token triggers immediate family revocation, invalidating all sessions for that account.
-- **Instant Invalidation on Password Update**: Increments `tokenVersion` in PostgreSQL; old access tokens fail immediately with `401 Unauthorized` without forcing the active user to re-login.
-- **Model Lifecycle Encryption**: Sequelize `beforeCreate` and `beforeUpdate` hooks ensure plaintext passwords never touch the database. Passwords are stripped automatically via `User.prototype.toJSON()`.
-- **Validation & Rate Limiting**: Strict Zod schemas and `express-rate-limit` (15 login attempts per 15 mins).
+The diagram summarizes the three configured routes. The actual `graph.py` builds a separate, linear path for each depth; it does not implement a conditional revision cycle.
 
----
+| Node | Module | Responsibility |
+|---|---|---|
+| Planner | `agents/planner.py` | Normalize the topic and prepare document-specific search queries. |
+| Searcher | `agents/searcher.py` | Discover sources through Tavily when configured. |
+| Crawler | `agents/crawler.py` | Retrieve web pages and remove common HTML boilerplate. |
+| Chunker | `agents/chunker.py` | Split retrieved text into manageable units. |
+| Vector RAG | `agents/vector_rag.py` | Select relevant context for subsequent stages; verify the exact retrieval algorithm in this module. |
+| Reasoner | `agents/reasoner.py` | Organize and synthesize research findings. |
+| Writer | `agents/writer.py` | Draft the selected document structure. |
+| Citation | `agents/citation.py` | Add or format references. Citation validity is not guaranteed. |
+| Reviewer | `agents/reviewer.py` | Evaluate the draft in the Deep route. |
+| Diagram | `agents/diagram.py` | Produce a Mermaid representation where supported. |
 
-## 👥 Collaborative Research Workspace & RBAC
+## Research Depths
 
-Every generated document automatically provisions a collaborative workspace with **Role-Based Access Control (RBAC)**:
+| Depth | Executed nodes | Description |
+|---|---:|---|
+| **Fast** | 4 | Planner → Searcher → Writer → Diagram |
+| **Balanced** | 9 | Planner → Searcher → Crawler → Chunker → Vector RAG → Reasoner → Writer → Citation → Diagram |
+| **Deep** | 10 | Balanced stages plus Reviewer before Diagram |
 
-```
-Role Hierarchy
-└── 👑 OWNER (Document Creator)
-    ├── Manage workspace settings, transfer ownership, delete document
-    ├── Generate / Revoke Invite Links & 6-character Invite Codes
-    ├── Change member roles & remove collaborators
-    └── Lock / Unlock document sections
-└── ✏️ EDITOR
-    ├── Edit document text, create versions & snapshots
-    ├── Add comments, create tasks, assign tasks
-    └── Export in all formats
-└── 🔍 RESEARCHER
-    ├── Add research notes, sources, and literature context
-    ├── Create tasks, add comments, use Chat-with-Paper
-    └── Cannot modify finalized document text directly
-└── 🧐 REVIEWER
-    ├── Quality assurance, suggest changes, approve/reject suggestions
-    └── Comment, view version history, use Chat-with-Paper
-└── 👁️ VIEWER
-    └── Read-only access to paper, citations, and export
-```
+**Important:** Deep currently includes a review stage, **not** an automatic revise-and-review loop. Implementing revision would require conditional LangGraph edges, revision limits, and a clear stopping condition.
 
-### Real-Time Collaboration Features
-- **Invite Links & Codes**: Generate shareable links or 6-character join codes with expiration dates and maximum usage thresholds.
-- **Section Locking**: Granular section-level locks prevent concurrent conflicting edits.
-- **Threaded Comments**: Inline contextual discussions with reply hierarchies and resolved/unresolved toggles.
-- **Collaborative Tasks**: Assign actionable to-dos with statuses (`TODO`, `IN_PROGRESS`, `DONE`, `BLOCKED`).
-- **Version History**: Immutable document snapshots with version numbering and rollback capabilities.
-- **Live WebSocket Presence**: Broadcast active member cards and typing events via Socket.io.
+## Document Types
 
----
+The frontend exposes six document objectives. The planner uses the selected objective to tailor its search queries.
 
-## 📄 Export Formats & Visualization
+| Document type | API value | Intended focus |
+|---|---|---|
+| Research Paper | `research_paper` | Research background, methodology, findings, and references |
+| Technical Approach | `technical_approach` | Implementation strategy, protocols, constraints, and deployment |
+| System Design | `system_design` | Components, data models, scalability, and reliability |
+| Comparative Analysis | `comparative_analysis` | Alternatives, evaluation criteria, and trade-offs |
+| Executive Summary | `executive_summary` | Context, key findings, and recommendations |
+| Literature Review | `literature_review` | Research landscape, taxonomy, and open questions |
 
-- **Interactive Markdown Reader**: Syntax highlighting, collapsible headings, and one-click clipboard copying.
-- **IEEE Academic PDF**: Custom print formatter converting Markdown and Mermaid blocks into formal 2-column IEEE layout cards.
-- **LaTeX Source (.tex)**: Clean download wrapped in standard `\documentclass{article}` with escaped sections and citations.
-- **Embedded Mermaid Diagrams**: Rendered inline using `mermaid.js` with zoom and pan controls.
+Document structures are generation targets, not guarantees of source quality, empirical validation, or publication readiness.
 
----
+## Document Management and Collaboration
 
-## 🗄️ PostgreSQL Database Architecture (13 Tables)
+The frontend includes views for saved documents, document reading, sharing, and collaboration. The project documentation also describes workspace roles, invitations, comments, tasks, version history, section locks, and presence indicators.
 
-```mermaid
-erDiagram
-    users ||--o{ refresh_tokens : owns
-    users ||--o{ research_documents : creates
-    users ||--o{ research_workspaces : owns
-    users ||--o{ workspace_members : participates
-    users ||--o{ comments : writes
-    users ||--o{ tasks : assigns
-    users ||--o{ activity_logs : generates
-    users ||--o{ notifications : receives
-    users ||--o{ document_locks : holds
+### Workspace roles described by the project
 
-    research_documents ||--|| research_workspaces : contains
-    research_documents ||--o{ document_versions : snapshots
-    research_documents ||--o{ comments : has
-    research_documents ||--o{ tasks : has
-    research_documents ||--o{ agent_runs : tracks
+| Role | Intended scope |
+|---|---|
+| Owner | Manage document and workspace membership |
+| Editor | Edit document content and participate in collaboration |
+| Researcher | Contribute research notes and source context |
+| Reviewer | Review drafts and provide feedback |
+| Viewer | Read shared content |
 
-    research_workspaces ||--o{ workspace_members : includes
-    research_workspaces ||--o{ workspace_invitations : generates
-    research_workspaces ||--o{ activity_logs : records
-```
+**Authorization requirement:** These permissions must be enforced in Express middleware and database queries. Hiding a button in the frontend is not a security control. Confirm route-level ownership and membership checks before relying on the role descriptions above.
 
-### Table Dictionary
-1. **`users`**: UUID primary key, `fullName`, unique `email`, bcrypt `password` hash, `tokenVersion`.
-2. **`refresh_tokens`**: UUID, `userId`, `tokenHash` (SHA-256), `expiresAt`, `revoked` flag, `replacedByToken`, `family`.
-3. **`research_documents`**: `topic`, `report` (TEXT), `depth`, `format`, `status`, `docType`, `mermaidDiagram`, `metadata`.
-4. **`research_workspaces`**: `name`, `description`, `ownerId`, `documentId`, `status`, `visibility`.
-5. **`workspace_members`**: `workspaceId`, `userId`, `role` (`OWNER`, `EDITOR`, `RESEARCHER`, `REVIEWER`, `VIEWER`), `status`.
-6. **`workspace_invitations`**: `workspaceId`, `invitedBy`, `inviteType` (`LINK`/`CODE`), `tokenHash`, `role`, `maxUses`, `usedCount`, `expiresAt`.
-7. **`document_versions`**: `documentId`, `workspaceId`, `versionNumber`, `content`, `changeSummary`, `createdBy`.
-8. **`comments`**: `documentId`, `authorId`, `sectionId`, `content`, `parentCommentId`, `status`, `resolvedBy`.
-9. **`tasks`**: `documentId`, `workspaceId`, `title`, `description`, `status`, `priority`, `assignedTo`, `createdBy`, `dueDate`.
-10. **`agent_runs`**: `documentId`, `workspaceId`, `initiatedBy`, `status`, `plan`, `searchQueries`, `metrics`.
-11. **`activity_logs`**: `workspaceId`, `documentId`, `userId`, `action`, `entityType`, `entityId`, `metadata`.
-12. **`notifications`**: `userId`, `workspaceId`, `title`, `message`, `type`, `isRead`.
-13. **`document_locks`**: `documentId`, `sectionId`, `lockedBy`, `lockType`, `expiresAt`.
+### Collaboration feature verification
 
----
+Before marking these features as fully supported, confirm their end-to-end behavior in the relevant frontend, Express routes, and database models:
 
-## 📂 Project Directory Structure
+- Workspace invitation links and join codes, including expiration and usage limits.
+- Member role assignment and permission enforcement.
+- Comments, tasks, and version snapshots.
+- Section-level locks and conflict handling.
+- Socket.io connection authentication, room authorization, and presence events.
+- Markdown, PDF, and LaTeX export behavior.
+
+## Authentication and Security
+
+The application uses authenticated requests to the Express document API. The broader project design describes access tokens, rotating refresh tokens, password hashing, and role-based permissions. Exact token lifetimes, replay handling, and invalidation behavior must be verified against the Express authentication implementation and automated tests.
+
+### Security considerations
+
+| Area | Required safeguard / verification |
+|---|---|
+| Express authentication | Validate JWT signature, allowed algorithms, expiry, and user identity. |
+| Refresh sessions | Verify rotation, secure storage, revocation, and replay behavior in code and tests. |
+| Workspace access | Enforce permissions on every document and collaboration endpoint. |
+| FastAPI research endpoint | Add authentication or restrict access behind a trusted authenticated service. |
+| Request validation | Bound prompt size and validate supported depth and document-type values. |
+| Web crawling | Restrict allowed URL schemes and block private/internal network targets, unsafe redirects, and oversized responses. |
+| API secrets | Load from environment variables; never commit actual secrets or use predictable production fallbacks. |
+| CORS | Allow only the frontend origins required by each deployment. |
+| Error handling | Return safe public errors and log diagnostic details server-side. |
+| Abuse protection | Apply appropriate request rate limits, timeouts, and concurrency limits to costly research jobs. |
+
+> **Current code caution:** The reviewed FastAPI endpoint accepts research requests without a visible authentication dependency, uses wildcard CORS with credentials, and returns exception messages in HTTP 500 responses. The reviewed frontend also sends `initiated_by` as client-controlled data without a bearer token to FastAPI. These should be addressed before exposing the AI engine publicly.
+
+**Password terminology:** bcrypt is a password-*hashing* mechanism, not reversible encryption.
+
+## Data Model
+
+The original project documentation lists the following 13 application tables. Treat this as a **documented schema inventory** until verified against Sequelize models and database migrations.
+
+| Table | Purpose |
+|---|---|
+| `users` | Accounts and authentication metadata |
+| `refresh_tokens` | Refresh-session records |
+| `research_documents` | Generated reports and document metadata |
+| `research_workspaces` | Collaboration workspaces |
+| `workspace_members` | Workspace membership and roles |
+| `workspace_invitations` | Invitations and join codes |
+| `document_versions` | Document snapshots |
+| `comments` | Document discussions |
+| `tasks` | Collaborative work items |
+| `agent_runs` | Research execution metadata |
+| `activity_logs` | Recorded workspace actions |
+| `notifications` | User notifications |
+| `document_locks` | Section lock metadata |
+
+If you use PostgreSQL extensions such as `pgvector`, document their installation, migrations, and index configuration explicitly.
+
+## Project Structure
+
+The following is a **condensed structure based on the original project documentation**. Confirm file names and remove entries that are not present in the public repository.
 
 ```text
-Research Automation Platform/
-├── client/                               # Next.js 16 Frontend
+Multiagent-Research-Platform/
+├── client/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx                # App root shell & metadata
-│   │   │   ├── page.tsx                  # Main router, auth guards & views
-│   │   │   └── globals.css               # Tailwind CSS theme tokens
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── globals.css
 │   │   ├── components/
 │   │   │   ├── auth/
-│   │   │   │   ├── LoginView.tsx         # Sign-in form with demo shortcuts
-│   │   │   │   └── SignUpView.tsx        # Registration with Zod length checks
-│   │   │   ├── dashboard/
-│   │   │   │   ├── ResearchInputConsole.tsx  # Document type, depth & format controls
-│   │   │   │   ├── AgentPipelineTracker.tsx  # Step-by-step agent progress tracker
-│   │   │   │   ├── PaperWorkspace.tsx        # Document reader, editor & export modal
-│   │   │   │   ├── MyDocumentsView.tsx       # Document cards & management
-│   │   │   │   ├── SidebarDrawer.tsx         # Navigation, notifications & user profile
-│   │   │   │   ├── CommentPanel.tsx          # Threaded comment threads
-│   │   │   │   ├── TaskPanel.tsx             # Collaborative tasks board
-│   │   │   │   ├── VersionHistory.tsx        # Document snapshots & revision rollback
-│   │   │   │   ├── ShareDocumentModal.tsx    # Invite link & invite code manager
-│   │   │   │   └── MermaidDiagram.tsx        # Interactive Mermaid.js viewer
-│   │   │   └── UserProfileModal.tsx      # PATCH profile name & password update modal
+│   │   │   └── dashboard/
 │   │   └── context/
-│   │       ├── AuthContext.tsx           # Dual-token management & silent rotation
-│   │       └── ThemeContext.tsx          # Color scheme provider
 │   └── package.json
-│
 ├── server/
-│   ├── gateway/                          # Node.js / Express Gateway Server
-│   │   ├── index.js                      # HTTP server, WebSockets & router mounts
-│   │   ├── db.js                         # Sequelize PostgreSQL connection & 13 models
-│   │   ├── wipe_database.js              # Database reset & synchronization script
+│   ├── gateway/
+│   │   ├── index.js
+│   │   ├── db.js
 │   │   ├── middleware/
-│   │   │   ├── authMiddleware.js         # JWT verification, sub claim & tokenVersion check
-│   │   │   ├── workspaceAuth.js          # Workspace permission verification
-│   │   │   └── permissions.js            # Granular RBAC permission constants
 │   │   └── routes/
-│   │       ├── auth.js                   # Zod register, login, refresh, logout, PATCH profile
-│   │       ├── documents.js              # Document creation & workspace provisioning
-│   │       ├── workspaces.js             # Member management & role assignment
-│   │       ├── invitations.js            # Invite link & code verification
-│   │       ├── comments.js               # Threaded comment CRUD & resolution
-│   │       ├── tasks.js                  # Task assignment & status updates
-│   │       ├── versions.js               # Document version snapshots
-│   │       └── locks.js                  # Real-time section locking
-│   │
-│   └── ai_engine/                        # Python / FastAPI AI Research Engine
-│       ├── main.py                       # FastAPI API server & research endpoint
-│       ├── graph.py                      # LangGraph StateGraph DAG builder (Fast, Balanced, Deep)
+│   └── ai_engine/
+│       ├── main.py
+│       ├── graph.py
+│       ├── requirements.txt
 │       └── agents/
-│           ├── types.py                  # ResearchState & DocumentChunk TypedDict definitions
-│           ├── planner.py                # Agent 1: Query decomposition by document type
-│           ├── searcher.py               # Agent 2: Tavily web discovery
-│           ├── crawler.py                # Agent 3: HTML cleansing & boilerplate extraction
-│           ├── chunker.py                # Agent 4: 800-char semantic text chunker
-│           ├── vector_rag.py             # Agent 5: TF cosine similarity vector ranking
-│           ├── reasoner.py               # Agent 6: Analytical trade-off reasoner
-│           ├── writer.py                 # Agent 7: RFC blueprint markdown synthesizer
-│           ├── citation.py               # Agent 8: Verified IEEE reference mapper
-│           ├── reviewer.py               # Agent 9: Academic peer reviewer & scoring
-│           └── diagram.py                # Agent 10: Horizontal Mermaid flowchart generator
-│
-├── .env                                  # Unified environment configuration
-└── README.md                             # Project documentation
+│           ├── types.py
+│           ├── planner.py
+│           ├── searcher.py
+│           ├── crawler.py
+│           ├── chunker.py
+│           ├── vector_rag.py
+│           ├── reasoner.py
+│           ├── writer.py
+│           ├── citation.py
+│           ├── reviewer.py
+│           └── diagram.py
+├── .env.example            # Recommended: add a sanitized template
+├── .gitignore
+└── README.md
 ```
 
----
-
-## 🚀 Installation & Quickstart Guide
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.x or v20.x+
-- **Python**: v3.11+
-- **PostgreSQL**: v15+ or v16+ (running on port `5432`)
-- **API Keys**:
-  - [Groq API Key](https://console.groq.com) (free tier supported)
-  - [Tavily Search API Key](https://tavily.com) (free tier supported)
 
----
+- **Node.js:** a version supported by the project's installed Next.js release (for Next.js 16, use Node.js 20.9+).
+- **Python:** 3.11+ (verify against the pinned Python dependencies).
+- **PostgreSQL:** a compatible local instance, typically on port `5432`.
+- **Groq API key:** for model-backed research generation.
+- **Tavily API key:** for live web search.
 
-### Step 1: Clone the Repository & Configure Environment
+> Install commands below assume the directories and dependency files in the project structure exist. The complete repository has not been executed as part of this documentation update.
+
+### 1. Clone the repository
+
 ```bash
-git clone https://github.com/your-username/researchflow-ai.git
-cd researchflow-ai
+git clone https://github.com/HetBhimani25/Multiagent-Research-Platform.git
+cd Multiagent-Research-Platform
 ```
 
-Create a root `.env` file:
-```env
-# ── Database Setup ──
+### 2. Configure environment variables
+
+Create a root `.env` file. Prefer copying a committed `.env.example` if one is available.
+
+```dotenv
+# PostgreSQL
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_postgres_password
+POSTGRES_PASSWORD=replace_with_your_database_password
 POSTGRES_DB=research_db
 
-# ── API Keys ──
+# Model and web search providers
 DEFAULT_LLM_PROVIDER=groq
-GROQ_API_KEY=gsk_your_groq_api_key_here
-GROQ_MODEL=qwen/qwen3.8-27b
-
+GROQ_API_KEY=replace_with_your_groq_api_key
+GROQ_MODEL=replace_with_a_supported_groq_model
 WEB_SEARCH_PROVIDER=tavily
-TAVILY_API_KEY=tvly_your_tavily_api_key_here
+TAVILY_API_KEY=replace_with_your_tavily_api_key
 
-# ── Security & Authentication ──
-JWT_SECRET=super_secret_jwt_access_key_min_32_characters_here
+# Application authentication
+JWT_SECRET=replace_with_a_cryptographically_random_secret
 
-# ── Service Ports ──
+# Local development ports
 PORT=4000
 FASTAPI_PORT=8000
 CLIENT_PORT=3000
 ```
 
----
+Generate a random JWT secret using a cryptographically secure tool, for example:
 
-### Step 2: Initialize Database
-Open PostgreSQL (`psql` or pgAdmin) and create the database:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Never commit `.env` or real credentials.** Confirm that the gateway and Python service read the intended environment file. Check whether additional refresh-token or frontend URL variables are required by the actual code.
+
+### 3. Create the database
+
+From PostgreSQL administration tools or a `psql` session with appropriate privileges:
+
 ```sql
 CREATE DATABASE research_db;
 ```
 
----
+Run the project's actual Sequelize migration or schema initialization process if required. Do not use a database wipe/reset script against data you need to preserve.
 
-### Step 3: Start the Backend Gateway (Port 4000)
+### 4. Start the Express gateway
+
+Open a terminal from the repository root:
+
 ```bash
 cd server/gateway
 npm install
 node index.js
 ```
-*Expected log output:*
-```text
-Gateway server running on http://localhost:4000
-PostgreSQL database connected successfully via Sequelize.
-All collaboration database models synchronized.
-```
 
----
+The development gateway is expected to listen on `http://localhost:4000`, subject to its environment configuration.
 
-### Step 4: Start the AI Research Engine (Port 8000)
-In a second terminal:
+### 5. Start the FastAPI research engine
+
+Open a **new terminal from the repository root**:
+
 ```bash
 cd server/ai_engine
 python -m venv .venv
+```
 
-# Windows:
+Activate the virtual environment:
+
+```powershell
+# Windows PowerShell
 .\.venv\Scripts\Activate.ps1
-# Linux / macOS:
+```
+
+```bash
+# Linux / macOS
 source .venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn main:app --port 8000 --reload
-```
-*Expected log output:*
-```text
-INFO: Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
----
+Then install dependencies and run the API:
 
-### Step 5: Start the Next.js Client (Port 3000)
-In a third terminal:
+```bash
+python -m pip install -r requirements.txt
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Check `http://localhost:8000/api/health` for a health response.
+
+### 6. Start the frontend
+
+Open a **third terminal from the repository root**:
+
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-Open your browser at **`http://localhost:3000`**.
+Open **http://localhost:3000**.
 
----
+### 7. Verify a local research flow
 
-## 📡 API Reference
+1. Register or sign in using the application's UI.
+2. Open the research console and enter a short topic.
+3. Select a document type and **Fast** depth.
+4. Generate a report and inspect the result.
+5. Check that the report appears in the saved documents view.
+6. Verify that only authorized users can access or delete the document.
 
-### Authentication Endpoints (`/api/auth`)
-| Method | Endpoint | Description | Auth Required |
-|:---:|:---|:---|:---:|
-| `POST` | `/api/auth/register` | Register user with Zod validation (min 8 char password); issues access + refresh tokens | No |
-| `POST` | `/api/auth/login` | Authenticate user (rate limited 15 requests / 15 mins); issues dual tokens | No |
-| `POST` | `/api/auth/refresh` | Rotate refresh token; issues new 15m access token & rotated 7d refresh token | No |
-| `POST` | `/api/auth/logout` | Revoke refresh token and terminate active session | Optional |
-| `GET` | `/api/auth/me` | Fetch authenticated user profile (verifies `decoded.sub` and `tokenVersion`) | Yes (Bearer) |
-| `PATCH` | `/api/auth/update-profile` | Update full name or change password; invalidates old tokens upon password change | Yes (Bearer) |
+**Note on fallback search data:** The reviewed searcher can produce synthetic placeholder results if Tavily is unavailable. Such results are not genuine evidence and must not be treated as verified citations.
 
-### Document & Workspace Endpoints (`/api/documents` & `/api/workspaces`)
-| Method | Endpoint | Description | Auth Required |
-|:---:|:---|:---|:---:|
-| `GET` | `/api/documents` | Fetch all documents owned by or shared with current user | Yes (Bearer) |
-| `POST` | `/api/documents` | Save generated research paper; auto-provisions Workspace & `OWNER` role | Yes (Bearer) |
-| `GET` | `/api/documents/:id` | Retrieve document details, workspace metadata, and user role | Yes (Bearer) |
-| `DELETE` | `/api/documents/:id` | Delete document and cascade-delete its workspace (Owner only) | Yes (Bearer) |
-| `POST` | `/api/workspaces/:id/invitations/link` | Generate shareable invite link with expiration | Yes (Owner) |
-| `POST` | `/api/workspaces/:id/invitations/code` | Generate 6-character workspace join code | Yes (Owner) |
-| `POST` | `/api/invitations/join` | Join workspace via 6-character code | Yes (Bearer) |
+## API Reference
 
-### AI Engine Endpoint (`http://localhost:8000/api/research`)
-| Method | Endpoint | Payload | Output |
-|:---:|:---|:---|:---|
-| `POST` | `/api/research/run` | `{ question, depth, doc_type, initiated_by }` | Complete research state including Markdown paper, search queries, cited references, and Mermaid diagram |
+### Express document API (`http://localhost:4000`)
 
----
+The reviewed frontend calls the following endpoints:
 
-## 🧪 Verification & Automated Test Suite
+| Method | Endpoint | Purpose | Frontend sends JWT? |
+|---|---|---|---|
+| `GET` | `/api/documents` | List saved documents | Yes |
+| `POST` | `/api/documents` | Save a generated document | Yes |
+| `DELETE` | `/api/documents/:id` | Delete a document | Yes |
+| `POST` | `/api/documents/migrate` | Import older locally stored documents | Yes |
 
-The system includes automated tests verifying the complete authentication and security lifecycle:
+The original documentation also describes `/api/auth`, `/api/workspaces`, and `/api/invitations` routes. Validate those paths, request schemas, and permission requirements against the actual Express router before treating them as a complete API reference.
 
-- ✅ **Test 1**: Zod input validation (rejection of malformed emails and short passwords).
-- ✅ **Test 2**: Registration and dual-token issuance (15m Access Token + 7d Refresh Token).
-- ✅ **Test 3**: Access Token standard `sub: user.id` claim validation with 15-minute expiration.
-- ✅ **Test 4**: Password hashing verified with bcrypt salt 12; refresh tokens stored as SHA-256 hashes.
-- ✅ **Test 5**: Middleware `/api/auth/me` attribute projection ensuring zero password hash leakage.
-- ✅ **Test 6**: Refresh token rotation on `/api/auth/refresh` (old token revoked, new token generated).
-- ✅ **Test 7**: Replay attack prevention: reused refresh tokens terminate all active sessions immediately.
-- ✅ **Test 8**: Session re-authentication lifecycle.
-- ✅ **Test 9**: `PATCH /api/auth/update-profile` credential verification and token re-issuance.
-- ✅ **Test 10**: Immediate rejection of old access tokens following a password update (`401 Unauthorized`).
-- ✅ **Test 11**: Credential update verification on login.
-- ✅ **Test 12**: Clean logout and token revocation.
+### FastAPI research API (`http://localhost:8000`)
 
-To verify Next.js type safety and compile status:
+**`POST /api/research/run`**
+
+Request example:
+
+```json
+{
+  "question": "Compare REST and GraphQL for a medium-scale application",
+  "depth": "balanced",
+  "doc_type": "comparative_analysis"
+}
+```
+
+Additional optional request fields defined in the reviewed FastAPI model: `workspace_id`, `document_id`, `initiated_by`, and `run_id`.
+
+Successful response shape:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "report": "...",
+    "search_queries": [],
+    "mermaid_diagram": "..."
+  }
+}
+```
+
+The `data` object is the workflow state and may contain additional fields. The sample above is illustrative, not a guaranteed complete response.
+
+**`GET /api/health`** returns a simple health status.
+
+### Other API groups
+
+The original project documentation lists authentication, workspace membership, invitations, comments, tasks, versions, and locks. Add detailed endpoint tables for those groups after verifying their actual route definitions and request/response contracts.
+
+## Testing and Verification
+
+The frontend build can be checked with:
+
 ```bash
 cd client
 npm run build
 ```
 
----
+This is a build/type-compatibility check; it is **not** proof that authentication, authorization, or end-to-end workflows have been tested.
 
-## 📜 License
+### Recommended automated test coverage
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+- Registration, login, logout, and authenticated profile access.
+- Access-token expiration and invalid or malformed token rejection.
+- Refresh-token rotation, reuse detection, and revocation, **if implemented**.
+- Password hashing, password-change behavior, and session invalidation.
+- Document ownership and workspace role enforcement across all routes.
+- Invitation expiry, maximum use, and membership transitions.
+- Input validation, rate limiting, and research endpoint access control.
+- Safe URL handling in the crawler, including private-IP and redirect blocking.
+- Research workflows for Fast, Balanced, and Deep depths.
+- Source integrity: synthetic or unavailable search results must not appear as verified citations.
+- Export output validity for Markdown, PDF, and LaTeX where supported.
+
+**Before adding a “Tests passing” badge:** Commit the test files, document the real test runner commands, and publish repeatable results (ideally through CI).
+
+## Known Limitations
+
+- AI-generated text may be inaccurate, incomplete, or unsuitable for publication without human review.
+- Source discovery depends on third-party search availability and coverage.
+- The reviewed searcher uses synthetic fallback results when search credentials are missing or live searches fail; these are placeholders, **not verifiable sources**.
+- The current Deep workflow runs a reviewer once; it does not automatically revise the document in a feedback loop.
+- The reviewed frontend calls FastAPI directly, and the reviewed FastAPI research endpoint lacks a visible authentication dependency.
+- The exact implementation and reliability of collaborative editing, WebSocket presence, exports, and refresh-token security require verification in their respective modules.
+- Local development endpoints and configuration are not production deployment instructions.
+
+## Roadmap
+
+The following are recommended next steps, not claims of existing functionality:
+
+- [ ] Protect the research API through authenticated requests or an authenticated gateway.
+- [ ] Replace synthetic search citations with explicit failure states or clearly marked demo data.
+- [ ] Add conditional revision loops with bounded retries and measurable review criteria.
+- [ ] Validate source provenance and citation-to-claim alignment.
+- [ ] Add safe crawler URL validation, redirect controls, and response-size limits.
+- [ ] Add end-to-end tests for authentication, document permissions, and collaboration.
+- [ ] Document and test PDF/LaTeX exports.
+- [ ] Add screenshots, a demo video, and reproducible deployment instructions.
+- [ ] Add CI for builds, tests, and linting.
+
+## License
+
+This project is described as MIT-licensed. See [LICENSE](LICENSE) for the full terms. Confirm that the `LICENSE` file is present in the public repository.
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for autonomous academic literature research and collaborative paper authoring.</sub>
+  <sub>ResearchFlow AI — structured research workflows and collaborative document tooling.</sub>
 </div>
