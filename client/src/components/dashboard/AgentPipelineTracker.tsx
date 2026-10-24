@@ -30,13 +30,16 @@ export type AgentStep =
   | "diagramming" 
   | "completed";
 
+export type ResearchDepth = "fast" | "balanced" | "deep";
+
 interface AgentPipelineTrackerProps {
   activeStep: AgentStep;
   loading: boolean;
   queries?: string[];
+  depth?: ResearchDepth;
 }
 
-const PIPELINE_AGENTS = [
+const ALL_10_AGENTS = [
   { id: "planning", stepNum: 1, name: "Planner Agent", icon: BrainCircuit, desc: "Query Decomposition" },
   { id: "searching", stepNum: 2, name: "Searcher Agent", icon: Search, desc: "Tavily Web Discovery" },
   { id: "crawling", stepNum: 3, name: "Crawler Agent", icon: Globe, desc: "HTML Scraping" },
@@ -49,16 +52,63 @@ const PIPELINE_AGENTS = [
   { id: "diagramming", stepNum: 10, name: "Diagram Agent", icon: GitFork, desc: "Mermaid Flowcharts" },
 ];
 
-export default function AgentPipelineTracker({ activeStep, loading, queries = [] }: AgentPipelineTrackerProps) {
+const FAST_3_AGENTS = [
+  { id: "planning", stepNum: 1, name: "Planner Agent", icon: BrainCircuit, desc: "Query Decomposition" },
+  { id: "searching", stepNum: 2, name: "Searcher Agent", icon: Search, desc: "Tavily Web Discovery" },
+  { id: "writing", stepNum: 3, name: "Writer Agent", icon: PenTool, desc: "Academic Paper Draft" },
+];
+
+const BALANCED_7_AGENTS = [
+  { id: "planning", stepNum: 1, name: "Planner Agent", icon: BrainCircuit, desc: "Query Decomposition" },
+  { id: "searching", stepNum: 2, name: "Searcher Agent", icon: Search, desc: "Tavily Web Discovery" },
+  { id: "crawling", stepNum: 3, name: "Crawler Agent", icon: Globe, desc: "HTML Scraping" },
+  { id: "chunking", stepNum: 4, name: "Chunker Agent", icon: Scissors, desc: "Text Segmentation" },
+  { id: "vector_rag", stepNum: 5, name: "Vector RAG Agent", icon: Database, desc: "pgvector Embeddings" },
+  { id: "reasoning", stepNum: 6, name: "Reasoner Agent", icon: Cpu, desc: "Context Synthesis" },
+  { id: "writing", stepNum: 7, name: "Writer Agent", icon: PenTool, desc: "Academic Paper Draft" },
+];
+
+export default function AgentPipelineTracker({ 
+  activeStep, 
+  loading, 
+  queries = [],
+  depth = "deep"
+}: AgentPipelineTrackerProps) {
   if (activeStep === "idle" && !loading) return null;
+
+  // Select agents based on research pipeline depth
+  const activeAgents = 
+    depth === "fast" 
+      ? FAST_3_AGENTS 
+      : depth === "balanced" 
+      ? BALANCED_7_AGENTS 
+      : ALL_10_AGENTS;
+
+  const pipelineTitle = 
+    depth === "fast"
+      ? "Live LangGraph 3-Agent Pipeline Execution"
+      : depth === "balanced"
+      ? "Live LangGraph 7-Agent Pipeline Execution"
+      : "Live LangGraph 10-Agent Pipeline Execution";
+
+  const gridClass = 
+    depth === "fast"
+      ? "grid grid-cols-1 sm:grid-cols-3 gap-3"
+      : depth === "balanced"
+      ? "grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5"
+      : "grid grid-cols-2 sm:grid-cols-5 gap-3";
 
   // Helper to determine step status
   const getStepStatus = (agentId: string, stepIndex: number) => {
-    const stepOrder = ["planning", "searching", "crawling", "chunking", "vector_rag", "reasoning", "writing", "citation", "reviewing", "diagramming", "completed"];
-    const currentIndex = stepOrder.indexOf(activeStep);
+    const stepOrder = activeAgents.map((a) => a.id).concat(["completed"]);
+    let currentNormStep = activeStep as string;
+    if ((depth === "fast" || depth === "balanced") && activeStep === "diagramming") {
+      currentNormStep = "writing";
+    }
+    const currentIndex = stepOrder.indexOf(currentNormStep);
     
     if (activeStep === agentId) return "active";
-    if (currentIndex > stepIndex || activeStep === "completed") return "completed";
+    if (activeStep === "completed" || (currentIndex !== -1 && currentIndex > stepIndex)) return "completed";
     return "pending";
   };
 
@@ -68,7 +118,7 @@ export default function AgentPipelineTracker({ activeStep, loading, queries = []
         <div className="flex items-center gap-2">
           <BrainCircuit className="w-5 h-5 text-[#CC6F00]" />
           <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#4D2A00]">
-            Live LangGraph 10-Agent Pipeline Execution
+            {pipelineTitle}
           </h3>
         </div>
         <span className="text-xs font-bold text-[#CC6F00] flex items-center gap-1.5">
@@ -103,9 +153,9 @@ export default function AgentPipelineTracker({ activeStep, loading, queries = []
         </div>
       )}
 
-      {/* Responsive 10-Agent Stepper Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {PIPELINE_AGENTS.map((agent, index) => {
+      {/* Responsive Stepper Grid adapted to Depth */}
+      <div className={gridClass}>
+        {activeAgents.map((agent, index) => {
           const status = getStepStatus(agent.id, index);
           const Icon = agent.icon;
 
@@ -122,7 +172,7 @@ export default function AgentPipelineTracker({ activeStep, loading, queries = []
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-[#CC6F00]">
-                  0{agent.stepNum}
+                  {agent.stepNum < 10 ? `0${agent.stepNum}` : agent.stepNum}
                 </span>
                 {status === "active" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#CC6F00]" />

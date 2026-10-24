@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
+import json
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pypdf import PdfReader
@@ -13,7 +15,7 @@ from pypdf import PdfReader
 env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-from graph import run_research_pipeline
+from graph import run_research_pipeline, stream_research_pipeline
 from rag_service import rag_store, execute_rag_query
 
 app = FastAPI(title="Multi-Agent AI Research Engine & Full Vector RAG System")
@@ -92,6 +94,44 @@ async def execute_research(payload: ResearchRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/research/stream")
+async def execute_research_stream(payload: ResearchRequest):
+    if not payload.question:
+        raise HTTPException(status_code=400, detail="Question prompt is required.")
+    
+    pipeline_depth = payload.depth.lower() if payload.depth else "deep"
+    doc_type = payload.doc_type.lower() if payload.doc_type else "research_paper"
+
+    async def event_generator():
+        try:
+            async for event in stream_research_pipeline(
+                payload.question,
+                depth=pipeline_depth,
+                doc_type=doc_type,
+                workspace_id=payload.workspace_id,
+                document_id=payload.document_id,
+                initiated_by=payload.initiated_by,
+                run_id=payload.run_id
+            ):
+                if event.get("type") == "pipeline_complete" and event.get("data", {}).get("report"):
+                    try:
+                        paper_id = payload.document_id or f"paper_{uuid.uuid4().hex[:8]}"
+                        rag_store.index_document(
+                            doc_id=paper_id,
+                            title=payload.question,
+                            content=event["data"]["report"],
+                            source_type="generated_paper",
+                            metadata={"depth": pipeline_depth, "doc_type": doc_type}
+                        )
+                    except Exception as idx_err:
+                        print("Auto index error:", idx_err)
+
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 # ── FULL RAG SYSTEM ENDPOINTS ──
 

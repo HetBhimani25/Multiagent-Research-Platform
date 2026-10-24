@@ -49,6 +49,8 @@ interface PaperWorkspaceProps {
   status?: string;
   onDocumentUpdated?: (newContent: string) => void;
   onStatusChanged?: (newStatus: string) => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function PaperWorkspace({
@@ -64,6 +66,8 @@ export default function PaperWorkspace({
   status = "DRAFT",
   onDocumentUpdated,
   onStatusChanged,
+  isSidebarOpen = true,
+  onToggleSidebar,
 }: PaperWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<
     "paper" | "diagrams" | "citations" | "chat" | "comments" | "tasks" | "versions" | "ai_runs"
@@ -97,6 +101,60 @@ export default function PaperWorkspace({
     }
   };
 
+  // Professional Title Generator: Sanitizes conversational user queries into publication-grade titles
+  const cleanToProfessionalTitle = (rawText: string, targetDocType?: string): string => {
+    if (!rawText) return "System Architecture & Engineering Specification";
+    let clean = rawText.trim();
+    
+    // Remove markdown prefix (#)
+    clean = clean.replace(/^#+\s*/, "");
+    
+    // Strip all existing publication title prefixes (in a while loop to prevent double prefixing)
+    const prefixRegex = /^(Technical Overview & Implementation|Technical Specification & Implementation Approach|System Architecture Blueprint & Topology|System Architecture Blueprint|Comparative Architectural Evaluation & Benchmark Matrix|Comparative Technical Analysis|Strategic Technical Whitepaper|Strategic Executive Whitepaper|Literature Review & State-of-the-Art Survey|Literature Review & Taxonomic Survey|Empirical Investigation & Architectural Analysis|Empirical Research & Architectural Analysis|Research Paper):\s*/i;
+    let prev = "";
+    while (prev !== clean) {
+      prev = clean;
+      clean = clean.replace(prefixRegex, "").trim();
+    }
+
+    // Strip conversational wrappers
+    const patterns = [
+      /^i\s+want\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^i\s+need\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^(can|could)\s+you\s+(please\s+)?(write|give|provide|create|generate|prepare)\s+(me\s+)?(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^please\s+(write|give|provide|create|generate|prepare)\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^give\s+me\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^provide\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^generate\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^write\s+(an?\s+)?(technical\s+approach|system\s+design|comparative\s+analysis|executive\s+summary|literature\s+review|research\s+paper|paper|report|guide|study)?\s+(on|for|about)?\s*/i,
+      /^research\s+(on|about)?\s*/i,
+      /^explain\s+(to\s+me\s+)?/i,
+      /^tell\s+me\s+about\s+/i
+    ];
+
+    for (const p of patterns) {
+      clean = clean.replace(p, "").trim();
+    }
+    clean = clean.replace(/^['"]+|['"]+$/g, "").trim();
+
+    if (!clean) clean = "System Architecture & Engineering Specification";
+
+    switch (targetDocType || docType) {
+      case "technical_approach":
+        return `Technical Specification & Implementation Approach: ${clean}`;
+      case "system_design":
+        return `System Architecture Blueprint & Topology: ${clean}`;
+      case "comparative_analysis":
+        return `Comparative Architectural Evaluation & Benchmark Matrix: ${clean}`;
+      case "executive_summary":
+        return `Strategic Executive Whitepaper: ${clean}`;
+      case "literature_review":
+        return `Literature Review & State-of-the-Art Survey: ${clean}`;
+      default:
+        return `Empirical Research & Architectural Analysis: ${clean}`;
+    }
+  };
+
   // Copy Markdown
   const copyToClipboard = () => {
     navigator.clipboard.writeText(report);
@@ -104,12 +162,105 @@ export default function PaperWorkspace({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Helper to convert Markdown + Mermaid into clean, professional LaTeX source code with TikZ diagrams
+  const convertMarkdownToLaTeX = (md: string, docTopic: string, targetDocType: string): string => {
+    const profTitle = cleanToProfessionalTitle(docTopic, targetDocType);
+    
+    let latexHeader = `% ResearchFlow AI - Publication-Grade LaTeX Document
+\\documentclass[journal,10pt]{IEEEtran}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath,amsfonts,amssymb}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{hyperref}
+\\usepackage{tikz}
+\\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+\\title{${profTitle.replace(/&/g, "\\&").replace(/_/g, "\\_")}}
+\\author{ResearchFlow AI Multi-Agent Autonomous Research Platform}
+\\date{\\today}
+
+\\begin{document}
+\\maketitle
+
+`;
+
+    let latexContent = md;
+
+    // Convert Mermaid blocks into authentic LaTeX TikZ figure environments
+    let figCounter = 1;
+    latexContent = latexContent.replace(/```mermaid([\s\S]*?)```/gi, (match, code) => {
+      const titleMatch = code.match(/%%\s*title:\s*([^\n]+)/i);
+      const diagramTitle = titleMatch ? titleMatch[1].trim() : "System Architecture and Workflow Diagram";
+      const nodeLabels = parseMermaidNodesForPDF(code);
+
+      if (nodeLabels.length === 0) {
+        return `\n% Diagram: ${diagramTitle}\n`;
+      }
+
+      const escapedTitle = diagramTitle.replace(/&/g, "\\&").replace(/_/g, "\\_");
+      let tikzCode = `
+\\begin{figure}[htbp]
+\\centering
+\\begin{tikzpicture}[
+  node distance=1.3cm,
+  every node/.style={rectangle, rounded corners=3pt, minimum width=5.2cm, minimum height=0.75cm, text centered, draw=black, thick, fill=gray!8, font=\\small\\sffamily},
+  arrow/.style={-{Stealth[scale=1.1]}, thick, draw=black}
+]
+`;
+
+      nodeLabels.forEach((lbl, idx) => {
+        const cleanLbl = lbl.replace(/&/g, "\\&").replace(/_/g, "\\_").replace(/#/g, "\\#");
+        if (idx === 0) {
+          tikzCode += `\\node (node${idx + 1}) {${idx + 1}. ${cleanLbl}};\n`;
+        } else {
+          tikzCode += `\\node (node${idx + 1}) [below of=node${idx}] {${idx + 1}. ${cleanLbl}};\n`;
+        }
+      });
+
+      for (let i = 1; i < nodeLabels.length; i++) {
+        tikzCode += `\\draw [arrow] (node${i}) -- (node${i + 1});\n`;
+      }
+
+      tikzCode += `\\end{tikzpicture}
+\\caption{${escapedTitle}}
+\\label{fig:diagram_${figCounter++}}
+\\end{figure}
+`;
+      return tikzCode;
+    });
+
+    // Strip other code blocks
+    latexContent = latexContent.replace(/```([\s\S]*?)```/gi, (match, code) => {
+      return `\\begin{verbatim}\n${code.trim()}\n\\end{verbatim}`;
+    });
+
+    // Convert Markdown Headings to LaTeX Sections
+    latexContent = latexContent.replace(/^#\s+(.*$)/gim, ""); // Skip H1 since it's in \maketitle
+    latexContent = latexContent.replace(/^##\s+(.*$)/gim, (m, p1) => `\\section{${p1.trim().replace(/&/g, "\\&").replace(/_/g, "\\_")}}`);
+    latexContent = latexContent.replace(/^###\s+(.*$)/gim, (m, p1) => `\\subsection{${p1.trim().replace(/&/g, "\\&").replace(/_/g, "\\_")}}`);
+    latexContent = latexContent.replace(/^####\s+(.*$)/gim, (m, p1) => `\\subsubsection{${p1.trim().replace(/&/g, "\\&").replace(/_/g, "\\_")}}`);
+
+    // Format Bold, Italic, and Inline Code
+    latexContent = latexContent.replace(/\*\*(.*?)\*\*/g, '\\textbf{$1}');
+    latexContent = latexContent.replace(/\*(.*?)\*/g, '\\textit{$1}');
+    latexContent = latexContent.replace(/`([^`]+)`/g, '\\texttt{$1}');
+
+    // Convert Links
+    latexContent = latexContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '\\href{$2}{$1}');
+
+    // Convert Lists
+    latexContent = latexContent.replace(/^\s*[-*]\s+(.*$)/gim, '\\item $1');
+    latexContent = latexContent.replace(/((\\item[^\n]*\n?)+)/gi, '\\begin{itemize}\n$1\\end{itemize}\n');
+
+    const latexFooter = `\n\\end{document}`;
+    return latexHeader + latexContent + latexFooter;
+  };
+
   // Download LaTeX source (.tex)
   const downloadLaTeX = () => {
-    const latexHeader = `% ResearchFlow AI - Generated Academic Document\n\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{hyperref}\n\\title{${topic || "Academic Document"}}\n\\author{ResearchFlow AI Multi-Agent Platform}\n\\begin{document}\n\\maketitle\n\n`;
-    const latexBody = report.replace(/#/g, "\\section").replace(/\*\*/g, "\\textbf");
-    const latexFooter = `\n\\end{document}`;
-    const blob = new Blob([latexHeader + latexBody + latexFooter], { type: "text/plain;charset=utf-8" });
+    const latexDoc = convertMarkdownToLaTeX(report, topic, docType);
+    const blob = new Blob([latexDoc], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -139,31 +290,61 @@ export default function PaperWorkspace({
     if (!md) return "";
 
     let html = md.replace(/```mermaid([\s\S]*?)```/gi, (match, p1) => {
+      const titleMatch = p1.match(/%%\s*title:\s*([^\n]+)/i);
+      const diagramTitle = titleMatch ? titleMatch[1].trim() : "Technical Process & Architecture Flowchart";
+      const isVertical = /(graph|flowchart)\s+(TD|TB)/i.test(p1);
+      const isCombination = /subgraph/i.test(p1);
       const nodeLabels = parseMermaidNodesForPDF(p1);
       
       if (nodeLabels.length === 0) {
-        return `<div class="diagram-card"><div class="diagram-header">SYSTEM ARCHITECTURE FLOWCHART</div><pre class="diagram-code">${p1.trim()}</pre></div>`;
+        return `<div class="diagram-card"><div class="diagram-header">${diagramTitle.toUpperCase()}</div><pre class="diagram-code">${p1.trim()}</pre></div>`;
       }
+
+      const layoutNote = isCombination 
+        ? "Multi-Tier Architecture Specification" 
+        : isVertical 
+        ? "Vertical Execution Flowchart" 
+        : "Horizontal Workflow Pipeline";
 
       let flowchartHTML = `
         <div class="diagram-card" style="border: 2px solid #222; background: #fafafa; padding: 16px; border-radius: 8px; margin: 20px 0; text-align: center; page-break-inside: avoid;">
-          <div class="diagram-header" style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 12px;">SYSTEM ARCHITECTURE FLOWCHART DIAGRAM</div>
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+          <div class="diagram-header" style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #111; margin-bottom: 4px;">FIGURE: ${diagramTitle.toUpperCase()}</div>
+          <div style="font-size: 7.5pt; color: #666; font-style: italic; margin-bottom: 14px; text-transform: uppercase;">[ ${layoutNote} ]</div>
       `;
 
-      nodeLabels.forEach((lbl, idx) => {
-        flowchartHTML += `
-          <div style="background: #fff; border: 1.5px solid #222; color: #000; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 9.5pt; display: inline-flex; align-items: center; gap: 8px; box-shadow: 1px 1px 4px rgba(0,0,0,0.1);">
-            <span style="background: #222; color: #fff; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 8pt; font-weight: bold;">${idx + 1}</span>
-            <span>${lbl}</span>
-          </div>
-        `;
-        if (idx < nodeLabels.length - 1) {
-          flowchartHTML += `<div style="color: #222; font-size: 14pt; font-weight: bold; margin: 2px 0;">↓</div>`;
-        }
-      });
+      if (isVertical || isCombination) {
+        // Vertical stacked layout with down arrows
+        flowchartHTML += `<div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">`;
+        nodeLabels.forEach((lbl, idx) => {
+          flowchartHTML += `
+            <div style="background: #fff; border: 1.5px solid #222; color: #000; padding: 8px 18px; border-radius: 6px; font-weight: bold; font-size: 9pt; display: inline-flex; align-items: center; gap: 8px; box-shadow: 1px 1px 4px rgba(0,0,0,0.08); max-width: 90%;">
+              <span style="background: #222; color: #fff; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 7.5pt; font-weight: bold; flex-shrink: 0;">${idx + 1}</span>
+              <span style="text-align: left;">${lbl}</span>
+            </div>
+          `;
+          if (idx < nodeLabels.length - 1) {
+            flowchartHTML += `<div style="color: #222; font-size: 13pt; font-weight: bold; margin: 1px 0;">↓</div>`;
+          }
+        });
+        flowchartHTML += `</div>`;
+      } else {
+        // Horizontal layout with right arrows
+        flowchartHTML += `<div style="display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px;">`;
+        nodeLabels.forEach((lbl, idx) => {
+          flowchartHTML += `
+            <div style="background: #fff; border: 1.5px solid #222; color: #000; padding: 7px 14px; border-radius: 6px; font-weight: bold; font-size: 8.5pt; display: inline-flex; align-items: center; gap: 6px; box-shadow: 1px 1px 4px rgba(0,0,0,0.08);">
+              <span style="background: #222; color: #fff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 7pt; font-weight: bold;">${idx + 1}</span>
+              <span>${lbl}</span>
+            </div>
+          `;
+          if (idx < nodeLabels.length - 1) {
+            flowchartHTML += `<div style="color: #222; font-size: 12pt; font-weight: bold;">➔</div>`;
+          }
+        });
+        flowchartHTML += `</div>`;
+      }
 
-      flowchartHTML += `</div></div>`;
+      flowchartHTML += `</div>`;
       return flowchartHTML;
     });
 
@@ -213,59 +394,139 @@ export default function PaperWorkspace({
     if (!printWindow) return;
 
     const renderedHTML = formatMarkdownToIEEEHTML(report);
+    const professionalTitle = cleanToProfessionalTitle(topic, docType);
+
+    // Format Date as dd/mm/yyyy (no time)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const formattedDate = `${day}/${month}/${year}`;
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${topic || "IEEE Technical Document"}</title>
+          <title>&nbsp;</title>
           <style>
-            @page { margin: 18mm; size: A4; }
+            @page { 
+              size: A4; 
+              margin: 0; 
+            }
             body { 
               font-family: 'Times New Roman', Times, 'Georgia', serif; 
               font-size: 10.5pt; 
               line-height: 1.5; 
               color: #111; 
               background: #fff; 
-              padding: 10px;
+              margin: 0;
+              padding: 16mm 18mm 16mm 18mm;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .pdf-running-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 8.5pt;
+              color: #555;
+              border-bottom: 0.75pt solid #bbb;
+              padding-bottom: 2mm;
+              margin-bottom: 6mm;
+              font-family: Arial, Helvetica, sans-serif;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .header-date {
+              font-weight: bold;
+              color: #333;
+            }
+            .header-right {
+              color: #777;
+              font-size: 8pt;
+            }
+            .pdf-running-footer {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 8pt;
+              color: #666;
+              border-top: 0.75pt solid #bbb;
+              padding-top: 2.5mm;
+              margin-top: 8mm;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+            .footer-left {
+              font-style: italic;
+              color: #888;
+            }
+            .footer-right {
+              font-weight: bold;
+              color: #333;
             }
             .header-box { 
               text-align: center; 
               border-bottom: 2px solid #111; 
-              padding-bottom: 12px; 
-              margin-bottom: 24px; 
+              padding-bottom: 14px; 
+              margin-bottom: 22px; 
+            }
+            .user-task-banner {
+              background: #faf8f2;
+              border: 1px solid #d4c5a9;
+              border-left: 3.5px solid #CC6F00;
+              border-radius: 4px;
+              padding: 6px 10px;
+              margin-bottom: 12px;
+              text-align: left;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+            .user-task-label {
+              font-size: 7.5pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #CC6F00;
+              display: block;
+              margin-bottom: 2px;
+            }
+            .user-task-text {
+              font-size: 9.5pt;
+              font-weight: 600;
+              color: #333;
             }
             .paper-main-title { 
-              font-size: 20pt; 
+              font-size: 18pt; 
               font-weight: bold; 
               margin-bottom: 6px; 
-              line-height: 1.2;
+              line-height: 1.25;
               color: #000; 
             }
             .paper-subtitle { 
-              font-size: 10pt; 
+              font-size: 9.5pt; 
               font-style: italic; 
-              color: #444; 
+              color: #555; 
             }
             .paper-title { display: none; }
             .section-title { 
-              font-size: 13pt; 
-              font-weight: bold; 
+              font-size: 11.5pt; 
+              font-weight: 900; 
               text-transform: uppercase; 
-              letter-spacing: 0.5px;
-              border-bottom: 1px solid #222; 
-              padding-bottom: 3px; 
+              letter-spacing: 0.6px;
+              background: #f7f7f7;
+              border-left: 4px solid #111;
+              padding: 4px 8px;
               margin-top: 22px; 
               margin-bottom: 10px; 
               page-break-after: avoid; 
               color: #000;
             }
             .subsection-title { 
-              font-size: 11pt; 
+              font-size: 10.5pt; 
               font-weight: bold; 
-              margin-top: 16px; 
+              margin-top: 14px; 
               margin-bottom: 6px; 
               page-break-after: avoid; 
+              color: #222;
             }
             .paper-paragraph { 
               text-align: justify; 
@@ -314,11 +575,27 @@ export default function PaperWorkspace({
           </style>
         </head>
         <body>
-          <div class="header-box">
-            <div class="paper-main-title">${topic || "Autonomous Academic Document"}</div>
-            <div class="paper-subtitle">Generated by ResearchFlow AI Multi-Agent Platform</div>
+          <div class="pdf-running-header">
+            <span class="header-date">${formattedDate}</span>
+            <span class="header-right">${getDocTypeLabel(docType).toUpperCase()}</span>
           </div>
+
+          <div class="header-box">
+            <div class="user-task-banner">
+              <span class="user-task-label">User Input / Research Task:</span>
+              <span class="user-task-text">${topic || "Autonomous Research Specification"}</span>
+            </div>
+            <div class="paper-main-title">${professionalTitle}</div>
+            <div class="paper-subtitle">ResearchFlow AI Multi-Agent Platform &bull; Date of Publication: ${formattedDate}</div>
+          </div>
+
           <div>${renderedHTML}</div>
+
+          <div class="pdf-running-footer">
+            <span class="footer-left">ResearchFlow AI Document Workspace</span>
+            <span class="footer-right">IEEE Standard Format</span>
+          </div>
+
           <script>
             window.onload = function() { window.print(); }
           </script>
@@ -391,18 +668,18 @@ export default function PaperWorkspace({
   const extractedUrls = Array.from(new Set(report.match(urlRegex) || []));
 
   return (
-    <div className="h-full flex flex-col gap-4 min-h-0 overflow-hidden relative">
+    <div className="w-full flex flex-col gap-4 relative pb-12">
       
-      {/* 1. TOP FEATURES MENU BAR CARD - STRICTLY STICKY & FIXED AT TOP */}
-      <div className="shrink-0 bg-white border-2 border-[#CC6F00]/30 rounded-2xl p-3 sm:p-4 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 z-20">
+      {/* 1. TOP FEATURES MENU BAR CARD - NATURALLY SCROLLABLE WITH DOCUMENT */}
+      <div className="w-full bg-white border-2 border-[#CC6F00]/30 rounded-2xl p-3 sm:p-3.5 shadow-md flex flex-col gap-2.5">
         
-        {/* Left Navigation Feature Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+        {/* ROW 1: All Main Feature Navigation Tabs */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setActiveTab("paper")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "paper"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -414,7 +691,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("comments")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "comments"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -426,7 +703,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("tasks")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "tasks"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -438,7 +715,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("versions")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "versions"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -450,7 +727,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("ai_runs")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "ai_runs"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -462,7 +739,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("citations")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "citations"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -474,7 +751,7 @@ export default function PaperWorkspace({
             onClick={() => setActiveTab("chat")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
               activeTab === "chat"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/30"
+                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
                 : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
             }`}
           >
@@ -483,115 +760,213 @@ export default function PaperWorkspace({
           </button>
         </div>
 
-        {/* Right Collaboration & Export Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
+        {/* ROW 2: Document Context, Status, Collaboration & Export Actions */}
+        <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-[#CC6F00]/20 flex-wrap">
           
-          {/* Document Type Badge */}
-          <div className="flex items-center gap-1.5 bg-[#F9E6A8] border border-[#CC6F00]/30 rounded-xl px-2.5 py-1 text-[11px] font-extrabold text-[#4D2A00] uppercase tracking-wider shadow-2xs">
-            <FileText className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>{getDocTypeLabel(docType)}</span>
+          {/* Left Metadata: Document Type & Status Selector */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-[#F9E6A8] border border-[#CC6F00]/30 rounded-xl px-2.5 py-1 text-[11px] font-extrabold text-[#4D2A00] uppercase tracking-wider shadow-2xs">
+              <FileText className="w-3.5 h-3.5 text-[#CC6F00]" />
+              <span>{getDocTypeLabel(docType)}</span>
+            </div>
+
+            <div className="flex items-center bg-[#F9E6A8]/40 border border-[#CC6F00]/30 rounded-xl px-2.5 py-1 text-[11px] font-extrabold text-[#4D2A00]">
+              <span className="mr-1.5 text-[#4D2A00]/70">Status:</span>
+              <select
+                value={docStatus}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={!isOwner && currentRole !== "EDITOR"}
+                className="bg-transparent font-black text-[#CC6F00] focus:outline-none cursor-pointer"
+              >
+                <option value="DRAFT">DRAFT</option>
+                <option value="COLLABORATING">COLLABORATING</option>
+                <option value="IN_REVIEW">IN REVIEW</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="FINAL">FINAL (LOCKED)</option>
+              </select>
+            </div>
           </div>
 
-          {/* Document Status Selector */}
-          <div className="flex items-center bg-[#F9E6A8]/40 border border-[#CC6F00]/30 rounded-xl px-2 py-1 text-[11px] font-extrabold text-[#4D2A00]">
-            <span className="mr-1.5">Status:</span>
-            <select
-              value={docStatus}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              disabled={!isOwner && currentRole !== "EDITOR"}
-              className="bg-transparent font-black text-[#CC6F00] focus:outline-none cursor-pointer"
+          {/* Right Toolbar: Collaboration & Export Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
             >
-              <option value="DRAFT">DRAFT</option>
-              <option value="COLLABORATING">COLLABORATING</option>
-              <option value="IN_REVIEW">IN REVIEW</option>
-              <option value="APPROVED">APPROVED</option>
-              <option value="FINAL">FINAL (LOCKED)</option>
-            </select>
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share</span>
+            </button>
+
+            <button
+              onClick={() => setIsCollaboratorPanelOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+              title="View Workspace Members"
+            >
+              <Users className="w-3.5 h-3.5 text-[#CC6F00]" />
+              <span>Team</span>
+            </button>
+
+            <button
+              onClick={() => setIsActivityFeedOpen(true)}
+              className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+              title="Workspace Activity Audit"
+            >
+              <Activity className="w-3.5 h-3.5 text-[#CC6F00]" />
+            </button>
+
+            <div className="h-4 w-px bg-[#CC6F00]/30 mx-0.5" />
+
+            <button
+              onClick={copyToClipboard}
+              className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
+              title="Copy Markdown"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#CC6F00]" />}
+            </button>
+
+            <button
+              onClick={exportIEEEPDF}
+              className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
+              title="Export IEEE Academic PDF"
+            >
+              <FileDown className="w-3.5 h-3.5 text-[#CC6F00]" />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={downloadLaTeX}
+              className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
+              title="Download LaTeX Source (.tex)"
+            >
+              <FileCode className="w-3.5 h-3.5 text-[#CC6F00]" />
+              <span>LaTeX</span>
+            </button>
           </div>
-
-          {/* Share Button (Opens Share Modal) */}
-          <button
-            onClick={() => setIsShareModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Share</span>
-          </button>
-
-          {/* Collaborators Button */}
-          <button
-            onClick={() => setIsCollaboratorPanelOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-xs font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
-            title="View Workspace Members"
-          >
-            <Users className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>Team</span>
-          </button>
-
-          {/* Activity Feed Button */}
-          <button
-            onClick={() => setIsActivityFeedOpen(true)}
-            className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
-            title="Workspace Activity Audit"
-          >
-            <Activity className="w-3.5 h-3.5 text-[#CC6F00]" />
-          </button>
-
-          {/* Export Actions */}
-          <button
-            onClick={copyToClipboard}
-            className="p-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs"
-            title="Copy Markdown"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#CC6F00]" />}
-          </button>
-
-          <button
-            onClick={exportIEEEPDF}
-            className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
-          >
-            <FileDown className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>PDF</span>
-          </button>
-
-          <button
-            onClick={downloadLaTeX}
-            className="px-2.5 py-1.5 rounded-xl bg-[#F9E6A8]/60 hover:bg-[#F9E6A8] text-[11px] font-extrabold text-[#4D2A00] border border-[#CC6F00]/30 transition-all shadow-2xs flex items-center gap-1"
-          >
-            <FileCode className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>LaTeX</span>
-          </button>
         </div>
       </div>
 
-      {/* 2. MAIN ACTIVE TAB CONTENT CONTAINER */}
-      <div className="flex-1 min-h-0 bg-white border-2 border-[#CC6F00]/30 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(204,111,0,0.25)] overflow-y-auto">
+      {/* 2. MAIN ACTIVE TAB CONTENT CONTAINER (Natural auto-expanding height to fit document) */}
+      <div className={`w-full ${activeTab === "paper" ? "" : "min-h-[600px]"} bg-white border-2 border-[#CC6F00]/30 rounded-3xl p-5 sm:p-7 shadow-[0_20px_50px_rgba(204,111,0,0.25)]`}>
         
         {/* Tab 1: Rendered GFM Paper Reader */}
         {activeTab === "paper" && (
-          <div className="prose max-w-none break-words overflow-hidden [word-break:break-word] prose-headings:font-extrabold prose-headings:text-[#4D2A00] prose-p:text-[#4D2A00] prose-p:leading-relaxed prose-a:text-[#CC6F00] prose-a:font-bold prose-a:break-all prose-code:bg-[#F9E6A8]/30 prose-code:p-1 prose-code:rounded-md prose-code:break-all">
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ node, className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || "");
-                  const isMermaid = match && match[1] === "mermaid";
-                  const contentStr = String(children).replace(/\n$/, "");
+          <div className="flex flex-col gap-4">
+            
+            {/* User Input / Task Specification Banner - Sleek and Compact */}
+            <div className="px-3.5 py-2.5 sm:px-4 sm:py-3 bg-gradient-to-r from-[#F9E6A8]/40 via-[#F9E6A8]/20 to-white border border-[#CC6F00]/30 rounded-xl shadow-2xs flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full bg-[#CC6F00] text-white font-black text-[9px] tracking-wider uppercase shadow-2xs">
+                    User Input / Task
+                  </span>
+                  <span className="text-[11px] font-bold text-[#CC6F00]">
+                    Original Request
+                  </span>
+                </div>
+                <span className="text-[10px] font-extrabold text-[#4D2A00]/80 bg-white px-2 py-0.5 rounded-lg border border-[#CC6F00]/20 shadow-2xs">
+                  Objective: {getDocTypeLabel(docType)}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-[#4D2A00] leading-snug">
+                "{topic || "Autonomous Research Specification"}"
+              </p>
+            </div>
 
-                  if (isMermaid) {
-                    return <MermaidDiagram chart={contentStr} />;
+            {/* Markdown Paper Document Content */}
+            <div className="prose max-w-none break-words [word-break:break-word] prose-p:text-[#4D2A00] prose-p:text-sm prose-p:leading-relaxed prose-a:text-[#CC6F00] prose-a:font-bold prose-a:break-all prose-code:bg-[#F9E6A8]/30 prose-code:p-1 prose-code:rounded-md prose-code:break-all">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1({ children }) {
+                    const rawTitle = String(children);
+                    const profTitle = cleanToProfessionalTitle(rawTitle, docType);
+                    return (
+                      <div className="mb-4 pb-2.5 border-b border-[#CC6F00]/25">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[#CC6F00] block mb-0.5">
+                          Document Title
+                        </span>
+                        <h1 className="text-base sm:text-lg font-black text-[#4D2A00] tracking-tight leading-snug m-0">
+                          {profTitle}
+                        </h1>
+                      </div>
+                    );
+                  },
+                  h2({ children }) {
+                    return (
+                      <div className="mt-5 mb-2.5 py-1.5 px-3 bg-[#F9E6A8]/35 border-l-3 border-[#CC6F00] rounded-r-lg shadow-2xs">
+                        <h2 className="text-xs sm:text-sm font-black text-[#4D2A00] uppercase tracking-wide m-0">
+                          {children}
+                        </h2>
+                      </div>
+                    );
+                  },
+                  h3({ children }) {
+                    return (
+                      <div className="mt-3.5 mb-1.5 px-2.5 py-1 bg-[#F9E6A8]/20 border border-[#CC6F00]/25 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#CC6F00] shrink-0" />
+                        <h3 className="text-xs font-bold text-[#4D2A00] m-0">
+                          {children}
+                        </h3>
+                      </div>
+                    );
+                  },
+                  h4({ children }) {
+                    return (
+                      <h4 className="text-[11px] font-bold text-[#CC6F00] uppercase tracking-wider mt-2.5 mb-1">
+                        {children}
+                      </h4>
+                    );
+                  },
+                  pre({ children }) {
+                    return (
+                      <pre className="overflow-x-auto p-3.5 my-3 rounded-xl bg-[#4D2A00]/5 border border-[#CC6F00]/20 text-xs text-[#4D2A00]">
+                        {children}
+                      </pre>
+                    );
+                  },
+                  table({ children }) {
+                    return (
+                      <div className="overflow-x-auto my-3 rounded-xl border border-[#CC6F00]/30 shadow-2xs">
+                        <table className="w-full text-left text-xs text-[#4D2A00] border-collapse">
+                          {children}
+                        </table>
+                      </div>
+                    );
+                  },
+                  th({ children }) {
+                    return (
+                      <th className="bg-[#F9E6A8]/50 p-2 font-bold border-b border-[#CC6F00]/30 text-xs text-[#4D2A00]">
+                        {children}
+                      </th>
+                    );
+                  },
+                  td({ children }) {
+                    return (
+                      <td className="p-2 border-b border-[#CC6F00]/15 text-xs text-[#4D2A00]">
+                        {children}
+                      </td>
+                    );
+                  },
+                  code({ node, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    const isMermaid = match && match[1] === "mermaid";
+                    const contentStr = String(children).replace(/\n$/, "");
+
+                    if (isMermaid) {
+                      return <MermaidDiagram chart={contentStr} />;
+                    }
+
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
                   }
-
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-              }}
-            >
-              {report}
-            </ReactMarkdown>
+                }}
+              >
+                {report}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 
@@ -650,7 +1025,7 @@ export default function PaperWorkspace({
           <div className="p-6 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl flex flex-col gap-4">
             <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
               <GitFork className="w-4 h-4 text-[#CC6F00]" />
-              Synthesized System Architecture Flowchart
+              Synthesized Multi-Agent Research Execution Pipeline
             </h4>
             <MermaidDiagram 
               chart={`graph LR

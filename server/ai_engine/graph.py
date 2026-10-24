@@ -35,15 +35,14 @@ def build_research_graph(depth: str = "deep"):
         builder.add_edge("writer", "diagram")
         builder.add_edge("diagram", END)
     elif depth == "balanced":
-        # Balanced Depth: 8 Agents with Flowchart Diagram (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Citation -> Diagram -> END)
+        # Balanced Depth: 7 Agents with Flowchart Diagram (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Diagram -> END)
         builder.add_edge("planner", "searcher")
         builder.add_edge("searcher", "crawler")
         builder.add_edge("crawler", "chunker")
         builder.add_edge("chunker", "vector_rag")
         builder.add_edge("vector_rag", "reasoner")
         builder.add_edge("reasoner", "writer")
-        builder.add_edge("writer", "citation")
-        builder.add_edge("citation", "diagram")
+        builder.add_edge("writer", "diagram")
         builder.add_edge("diagram", END)
     else:
         # Deep Academic Depth: Full 10 Agents (Planner -> Searcher -> Crawler -> Chunker -> Vector RAG -> Reasoner -> Writer -> Citation -> Reviewer -> Diagram -> END)
@@ -103,3 +102,92 @@ async def run_research_pipeline(
         final_state["report"] = final_state.get("cited_report") or final_state.get("draft_report") or ""
 
     return final_state
+
+async def stream_research_pipeline(
+    question: str,
+    depth: str = "deep",
+    doc_type: str = "research_paper",
+    workspace_id: str = None,
+    document_id: str = None,
+    initiated_by: str = None,
+    run_id: str = None
+):
+    initial_state: ResearchState = {
+        "question": question,
+        "plan": "",
+        "search_queries": [],
+        "search_results": [],
+        "raw_documents": [],
+        "chunks": [],
+        "retrieved_context": [],
+        "insights": [],
+        "draft_report": "",
+        "cited_report": "",
+        "review_score": 0,
+        "review_feedback": "",
+        "revision_count": 0,
+        "mermaid_diagram": "",
+        "report": "",
+        "status": "started",
+        "error": None,
+        "doc_type": doc_type,
+        "workspace_id": workspace_id,
+        "document_id": document_id,
+        "initiated_by": initiated_by,
+        "run_id": run_id
+    }
+
+    graph = build_research_graph(depth=depth)
+
+    node_to_step = {
+        "planner": "planning",
+        "searcher": "searching",
+        "crawler": "crawling",
+        "chunker": "chunking",
+        "vector_rag": "vector_rag",
+        "reasoner": "reasoning",
+        "writer": "writing",
+        "citation": "citation",
+        "reviewer": "reviewing",
+        "diagram": "diagramming"
+    }
+
+    if depth == "fast":
+        expected_steps = ["planning", "searching", "writing"]
+    elif depth == "balanced":
+        expected_steps = ["planning", "searching", "crawling", "chunking", "vector_rag", "reasoning", "writing"]
+    else:
+        expected_steps = ["planning", "searching", "crawling", "chunking", "vector_rag", "reasoner", "writing", "citation", "reviewing", "diagramming"]
+
+    # Initial start event: Planner Agent
+    yield {"type": "step_start", "step": "planning", "node": "planner"}
+
+    accumulated_state = dict(initial_state)
+
+    async for chunk in graph.astream(initial_state):
+        for node_name, node_update in chunk.items():
+            if isinstance(node_update, dict):
+                accumulated_state.update(node_update)
+
+            step_name = node_to_step.get(node_name, node_name)
+            event_payload = {
+                "type": "step_complete",
+                "step": step_name,
+                "node": node_name
+            }
+            if node_name == "planner" and "search_queries" in node_update:
+                event_payload["search_queries"] = node_update["search_queries"]
+
+            yield event_payload
+
+            # Notify the next active step
+            if step_name in expected_steps:
+                curr_idx = expected_steps.index(step_name)
+                if curr_idx + 1 < len(expected_steps):
+                    next_step = expected_steps[curr_idx + 1]
+                    yield {"type": "step_start", "step": next_step}
+
+    if not accumulated_state.get("report"):
+        accumulated_state["report"] = accumulated_state.get("cited_report") or accumulated_state.get("draft_report") or ""
+
+    yield {"type": "pipeline_complete", "data": accumulated_state}

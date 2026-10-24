@@ -8,13 +8,12 @@ import {
   Users, 
   Bot, 
   Compass, 
-  BarChart3, 
   Settings, 
   LogOut,
   ChevronRight,
-  Sparkles,
   Bell,
-  KeyRound
+  KeyRound,
+  PanelLeftClose
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -23,8 +22,7 @@ export type DashboardView =
   | "generate" 
   | "reader" 
   | "collaboration" 
-  | "rag_assistant" 
-  | "metrics";
+  | "rag_assistant";
 
 interface SidebarDrawerProps {
   currentView: DashboardView;
@@ -34,7 +32,10 @@ interface SidebarDrawerProps {
   savedPapersCount: number;
   unreadNotificationsCount?: number;
   onOpenNotifications?: () => void;
+  isNotificationsOpen?: boolean;
   onOpenJoinWorkspace?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function SidebarDrawer({
@@ -45,7 +46,10 @@ export default function SidebarDrawer({
   savedPapersCount,
   unreadNotificationsCount = 0,
   onOpenNotifications,
+  isNotificationsOpen = false,
   onOpenJoinWorkspace,
+  isOpen = true,
+  onClose,
 }: SidebarDrawerProps) {
   const { user, logout } = useAuth();
 
@@ -73,11 +77,6 @@ export default function SidebarDrawer({
       icon: Users,
       badge: "Multi-User",
     },
-    {
-      id: "metrics" as DashboardView,
-      label: "System Metrics",
-      icon: BarChart3,
-    },
   ];
 
   return (
@@ -85,41 +84,55 @@ export default function SidebarDrawer({
       
       {/* Top Header: Brand Logo & Title + Scrollable Navigation Area */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-1.5 py-1">
-        <div className="flex items-center justify-between pb-5 border-b border-[#CC6F00]/20 shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-[#F2A900]/20 border border-[#CC6F00]/30 text-[#CC6F00] rounded-2xl shadow-xs">
-              <BrainCircuit className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="font-extrabold text-base leading-none bg-gradient-to-r from-[#4D2A00] via-[#CC6F00] to-[#4D2A00] bg-clip-text text-transparent">
-                ResearchFlow AI
-              </h1>
-              <p className="text-[10px] font-bold text-[#CC6F00] mt-1 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-[#F2A900]" />
-                v2.0 Multi-Agent Platform
-              </p>
-            </div>
+        {/* Main Logo and Project Title */}
+        <div className="flex items-center space-x-3 pb-1 shrink-0">
+          <div className="p-2.5 bg-[#F2A900]/20 border border-[#CC6F00]/30 text-[#CC6F00] rounded-2xl shadow-xs shrink-0">
+            <BrainCircuit className="w-6 h-6" />
           </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-black text-lg leading-tight bg-gradient-to-r from-[#4D2A00] via-[#CC6F00] to-[#4D2A00] bg-clip-text text-transparent truncate">
+              ResearchFlow AI
+            </h1>
+          </div>
+        </div>
 
-          {/* In-app Notification Bell */}
+        <div className="flex items-center justify-center gap-3 py-2.5 border-y border-[#CC6F00]/20 my-2 shrink-0">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2.5 rounded-2xl bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] border border-[#CC6F00]/30 text-[#4D2A00] hover:text-[#CC6F00] transition-all hover:scale-105 active:scale-95 shadow-2xs"
+              title="Collapse Sidebar / Full Screen (Ctrl+B)"
+              aria-label="Collapse Sidebar"
+            >
+              <PanelLeftClose className="w-4 h-4 text-[#CC6F00]" />
+            </button>
+          )}
+
           {onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
-              className="relative p-2 rounded-xl bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] border border-[#CC6F00]/30 text-[#4D2A00] transition-colors"
-              title="Notifications"
+              className={`relative p-2.5 rounded-2xl border transition-all hover:scale-105 active:scale-95 shadow-2xs ${
+                isNotificationsOpen
+                  ? "bg-[#F2A900] border-[#CC6F00] text-[#4D2A00] ring-2 ring-[#CC6F00]/30 shadow-sm"
+                  : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] border-[#CC6F00]/30 text-[#4D2A00]"
+              }`}
+              title={isNotificationsOpen ? "Close Notifications" : "Open Notifications"}
+              aria-label={isNotificationsOpen ? "Close Notifications" : "Open Notifications"}
+              aria-expanded={isNotificationsOpen}
             >
-              <Bell className="w-4 h-4 text-[#CC6F00]" />
+              <Bell className={`w-4 h-4 ${isNotificationsOpen ? "text-[#4D2A00]" : "text-[#CC6F00]"}`} />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#CC6F00] text-white font-black text-[9px] flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#CC6F00] text-white font-black text-[9px] flex items-center justify-center animate-pulse shadow-sm">
                   {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
                 </span>
               )}
             </button>
           )}
+          
         </div>
 
         {/* Main Navigation Menu Links */}
-        <div className="mt-5 flex flex-col space-y-1.5 flex-1 pb-2">
+        <div className="mt-3 flex flex-col space-y-1.5 flex-1 pb-2">
           <span className="text-[10px] font-black uppercase tracking-wider text-[#CC6F00] px-2 mb-1">
             Platform Views
           </span>

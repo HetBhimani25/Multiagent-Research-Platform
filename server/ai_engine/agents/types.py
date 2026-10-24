@@ -34,3 +34,7 @@ class ResearchState(TypedDict):
     document_id: Optional[str]
     initiated_by: Optional[str]
     run_id: Optional[str]
+    # Dynamic Planning & Intelligent Diagrams
+    diagram_required: Optional[bool]
+    diagram_plan: Optional[List[Dict[str, Any]]]
+    planned_sections: Optional[List[str]]
