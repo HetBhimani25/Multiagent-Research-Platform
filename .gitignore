@@ -3,6 +3,8 @@
 .env.local
 .env.*.local
 *.env
+ResearchFlow AI Documentation
+ResearchFlow_AI_Presentation
 
 # Python
 __pycache__/
