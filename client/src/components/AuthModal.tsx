@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { X, Lock, Mail, User, Eye, EyeOff, Loader2, Sparkles, AlertCircle, ShieldCheck } from "lucide-react";
+import { X, Lock, Mail, User, Eye, EyeOff, Loader2, Sparkles, AlertCircle } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -64,22 +64,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoLogin = async () => {
-    setEmail("demo@researchflow.ai");
-    setPassword("demo123456");
-    setError("");
-    setLoading(true);
-    const res = await register("Demo Researcher", "demo@researchflow.ai", "demo123456");
-    if (!res.success) {
-      const loginRes = await login("demo@researchflow.ai", "demo123456");
-      if (loginRes.success) onClose();
-      else setError("Demo login failed.");
-    } else {
-      onClose();
-    }
-    setLoading(false);
   };
 
   return (
@@ -227,16 +211,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             ) : (
               "Complete Account Setup"
             )}
-          </button>
-
-          {/* Quick Demo Access Button */}
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="w-full py-2.5 rounded-xl bg-[#F9E6A8]/50 hover:bg-[#F9E6A8] border border-[#CC6F00]/40 text-[#4D2A00] text-xs font-bold transition-all flex items-center justify-center gap-2"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#CC6F00]" />
-            Sign in as Quick Demo User
           </button>
         </form>
       </div>

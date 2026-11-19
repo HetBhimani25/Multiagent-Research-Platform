@@ -193,6 +193,8 @@ class RAGVectorStore:
         self,
         query: str,
         doc_id: Optional[str] = None,
+        allowed_doc_ids: Optional[List[str]] = None,
+        user_id: Optional[str] = None,
         top_k: int = 5
     ) -> List[Dict[str, Any]]:
         """Hybrid Vector + BM25 cosine retrieval across chunks."""
@@ -202,6 +204,15 @@ class RAGVectorStore:
         target_chunks = self.chunks
         if doc_id and doc_id != "all":
             target_chunks = [c for c in self.chunks if c.doc_id == doc_id]
+            if not target_chunks:
+                return []
+        elif allowed_doc_ids is not None:
+            # Constrain to allowed document IDs for this user
+            allowed_set = set(allowed_doc_ids)
+            target_chunks = [
+                c for c in self.chunks 
+                if c.doc_id in allowed_set or (user_id and c.metadata.get("user_id") == user_id)
+            ]
             if not target_chunks:
                 return []
 
@@ -270,7 +281,25 @@ class RAGVectorStore:
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:top_k]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(
+        self, 
+        allowed_doc_ids: Optional[List[str]] = None, 
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        docs = list(self.documents.values())
+        if allowed_doc_ids is not None:
+            allowed_set = set(allowed_doc_ids)
+            docs = [
+                d for d in docs 
+                if d["id"] in allowed_set or (user_id and d.get("metadata", {}).get("user_id") == user_id)
+            ]
+            doc_ids_set = {d["id"] for d in docs}
+            matching_chunks = [c for c in self.chunks if c.doc_id in doc_ids_set]
+            return {
+                "total_documents": len(docs),
+                "total_chunks": len(matching_chunks),
+                "documents": docs
+            }
         return {
             "total_documents": len(self.documents),
             "total_chunks": len(self.chunks),
@@ -282,24 +311,46 @@ class RAGVectorStore:
 rag_store = RAGVectorStore()
 
 
-async def execute_rag_query(query: str, doc_id: Optional[str] = None, top_k: int = 5) -> Dict[str, Any]:
+async def execute_rag_query(
+    query: str, 
+    doc_id: Optional[str] = None, 
+    allowed_doc_ids: Optional[List[str]] = None,
+    user_id: Optional[str] = None,
+    top_k: int = 5
+) -> Dict[str, Any]:
     """Retrieves top context and generates a grounded response using Groq LLM."""
-    retrieved = rag_store.search(query, doc_id=doc_id, top_k=top_k)
+    retrieved = rag_store.search(
+        query, 
+        doc_id=doc_id, 
+        allowed_doc_ids=allowed_doc_ids,
+        user_id=user_id,
+        top_k=top_k
+    )
+
+    # Determine user-scoped chunks count for total_chunks_evaluated
+    user_chunks_count = len(rag_store.chunks)
+    if doc_id and doc_id != "all":
+        user_chunks_count = len([c for c in rag_store.chunks if c.doc_id == doc_id])
+    elif allowed_doc_ids is not None:
+        allowed_set = set(allowed_doc_ids)
+        user_chunks_count = len([
+            c for c in rag_store.chunks 
+            if c.doc_id in allowed_set or (user_id and c.metadata.get("user_id") == user_id)
+        ])
 
     if not retrieved:
-        # Check if store has any documents at all
-        if not rag_store.chunks:
+        if user_chunks_count == 0:
             return {
-                "answer": "There are currently no documents in the RAG knowledge base. You can **upload a PDF/TXT document** or **generate a new research paper** to begin querying your library.",
+                "answer": "There are currently no indexed documents in your personal knowledge base. You can **upload a PDF/TXT document** or **generate a new research paper** to begin querying your library.",
                 "sources": [],
                 "confidence": 0.0,
                 "total_chunks_evaluated": 0
             }
         return {
-            "answer": f"I searched across the indexed documents, but could not find information directly relevant to: *\"{query}\"*. Please try rephrasing or asking about topics covered in the selected document(s).",
+            "answer": f"I searched across your research documents in the knowledge base, but could not find information directly relevant to: *\"{query}\"*. Please try rephrasing or asking about topics covered in your selected document(s).",
             "sources": [],
             "confidence": 0.0,
-            "total_chunks_evaluated": len(rag_store.chunks)
+            "total_chunks_evaluated": user_chunks_count
         }
 
     # Format context for LLM
@@ -373,5 +424,5 @@ Based on semantic vector retrieval against your documents, here are the most rel
         "answer": answer,
         "sources": retrieved,
         "confidence": round(avg_score * 100, 1),
-        "total_chunks_evaluated": len(rag_store.chunks)
+        "total_chunks_evaluated": user_chunks_count
     }

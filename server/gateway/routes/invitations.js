@@ -62,15 +62,19 @@ router.post('/workspaces/:workspaceId/invitations/link', verifyToken, requireWor
       usesCount: 0,
     });
 
-    await ActivityLog.create({
-      workspaceId: req.workspace.id,
-      documentId: req.workspace.documentId,
-      userId: req.user.id,
-      action: 'MEMBER_INVITED',
-      entityType: 'invitation',
-      entityId: invitation.id,
-      metadata: { type: 'LINK', role, expiresAt },
-    });
+    try {
+      await ActivityLog.create({
+        workspaceId: req.workspace.id,
+        documentId: req.workspace.documentId,
+        userId: req.user.id,
+        action: 'MEMBER_INVITED',
+        entityType: 'invitation',
+        entityId: invitation.id,
+        metadata: { type: 'LINK', role, expiresAt: expiresAt.toISOString() },
+      });
+    } catch (logErr) {
+      console.warn('ActivityLog create error (non-fatal):', logErr.message);
+    }
 
     const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
     const inviteLink = `${clientOrigin}/invite/${rawToken}`;
@@ -88,7 +92,7 @@ router.post('/workspaces/:workspaceId/invitations/link', verifyToken, requireWor
     });
   } catch (err) {
     console.error('Generate invite link error:', err);
-    return res.status(500).json({ error: 'GENERATE_FAILED', message: err.message });
+    return res.status(500).json({ success: false, error: 'GENERATE_FAILED', message: err.message });
   }
 });
 
@@ -119,15 +123,19 @@ router.post('/workspaces/:workspaceId/invitations/code', verifyToken, requireWor
       usesCount: 0,
     });
 
-    await ActivityLog.create({
-      workspaceId: req.workspace.id,
-      documentId: req.workspace.documentId,
-      userId: req.user.id,
-      action: 'MEMBER_INVITED',
-      entityType: 'invitation',
-      entityId: invitation.id,
-      metadata: { type: 'CODE', code: cleanCode, role, expiresAt },
-    });
+    try {
+      await ActivityLog.create({
+        workspaceId: req.workspace.id,
+        documentId: req.workspace.documentId,
+        userId: req.user.id,
+        action: 'MEMBER_INVITED',
+        entityType: 'invitation',
+        entityId: invitation.id,
+        metadata: { type: 'CODE', code: cleanCode, role, expiresAt: expiresAt.toISOString() },
+      });
+    } catch (logErr) {
+      console.warn('ActivityLog create error (non-fatal):', logErr.message);
+    }
 
     return res.status(201).json({
       success: true,
@@ -141,7 +149,7 @@ router.post('/workspaces/:workspaceId/invitations/code', verifyToken, requireWor
     });
   } catch (err) {
     console.error('Generate invite code error:', err);
-    return res.status(500).json({ error: 'GENERATE_FAILED', message: err.message });
+    return res.status(500).json({ success: false, error: 'GENERATE_FAILED', message: err.message });
   }
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   MessageSquare, 
   Send, 
@@ -55,15 +55,31 @@ export default function CommentPanel({
   workspaceId,
   authToken,
   currentUserId,
-  sections = ["Abstract", "Introduction", "Literature Review", "System Design", "Analysis", "Conclusion"],
+  sections,
   onClose,
 }: CommentPanelProps) {
+  const effectiveSections = useMemo(() => {
+    if (sections && sections.length > 0) {
+      return sections;
+    }
+    return ["General Discussion"];
+  }, [sections]);
+
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<"ALL" | "OPEN" | "RESOLVED">("ALL");
   const [newCommentText, setNewCommentText] = useState("");
-  const [selectedSection, setSelectedSection] = useState("Introduction");
+  const [selectedSection, setSelectedSection] = useState<string>(
+    effectiveSections[0] || "General Discussion"
+  );
   const [selectedType, setSelectedType] = useState("GENERAL");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync selectedSection whenever document sections change
+  useEffect(() => {
+    if (effectiveSections.length > 0 && !effectiveSections.includes(selectedSection)) {
+      setSelectedSection(effectiveSections[0]);
+    }
+  }, [effectiveSections, selectedSection]);
 
   // Replying state
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
@@ -258,11 +274,14 @@ export default function CommentPanel({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-[#F9E6A8] text-[#CC6F00] border border-[#CC6F00]/20">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span 
+                    className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-[#F9E6A8] text-[#CC6F00] border border-[#CC6F00]/20 truncate max-w-[200px]"
+                    title={comment.sectionId}
+                  >
                     {comment.sectionId}
                   </span>
-                  <span className="text-[9px] font-bold text-[#4D2A00]/70">
+                  <span className="text-[9px] font-bold text-[#4D2A00]/70 shrink-0">
                     {comment.commentType}
                   </span>
                 </div>
@@ -368,11 +387,12 @@ export default function CommentPanel({
           <select
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
-            className="flex-1 bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-xl px-2 py-1 text-[11px] font-extrabold text-[#4D2A00] focus:outline-none"
+            className="flex-1 min-w-0 bg-[#F9E6A8]/30 border border-[#CC6F00]/30 rounded-xl px-2.5 py-1.5 text-[11px] font-extrabold text-[#4D2A00] focus:outline-none truncate cursor-pointer"
+            title={selectedSection}
           >
-            {sections.map((s) => (
-              <option key={s} value={s}>
-                Section: {s}
+            {effectiveSections.map((s) => (
+              <option key={s} value={s} className="bg-white text-[#4D2A00]">
+                {s.toLowerCase().startsWith("section:") ? s : `Section: ${s}`}
               </option>
             ))}
           </select>

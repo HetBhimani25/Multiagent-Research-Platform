@@ -74,7 +74,7 @@ export default function AgentPipelineTracker({
   queries = [],
   depth = "deep"
 }: AgentPipelineTrackerProps) {
-  if (activeStep === "idle" && !loading) return null;
+  if (!loading || activeStep === "idle") return null;
 
   // Select agents based on research pipeline depth
   const activeAgents = 

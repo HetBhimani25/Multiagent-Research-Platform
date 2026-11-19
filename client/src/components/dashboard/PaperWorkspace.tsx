@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MermaidDiagram from "./MermaidDiagram";
@@ -34,7 +34,6 @@ import CommentPanel from "./CommentPanel";
 import TaskPanel from "./TaskPanel";
 import VersionHistory from "./VersionHistory";
 import ActivityFeed from "./ActivityFeed";
-import AIRunPanel from "./AIRunPanel";
 
 interface PaperWorkspaceProps {
   report: string;
@@ -70,7 +69,7 @@ export default function PaperWorkspace({
   onToggleSidebar,
 }: PaperWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<
-    "paper" | "diagrams" | "citations" | "chat" | "comments" | "tasks" | "versions" | "ai_runs"
+    "paper" | "diagrams" | "citations" | "chat" | "comments" | "tasks" | "versions"
   >("paper");
   const [copied, setCopied] = useState(false);
   const [docStatus, setDocStatus] = useState(status);
@@ -667,6 +666,29 @@ export default function PaperWorkspace({
   const urlRegex = /(https?:\/\/[^\s\)\"]+)/g;
   const extractedUrls = Array.from(new Set(report.match(urlRegex) || []));
 
+  // Extract real section titles dynamically from generated markdown document for accurate commenting
+  const extractedSections = useMemo(() => {
+    if (!report) return ["General Discussion"];
+    // Strip code blocks so code comments or mermaid definitions aren't parsed as sections
+    const cleanMd = report.replace(/```[\s\S]*?```/g, "");
+    const matches = Array.from(cleanMd.matchAll(/^##\s+([^\r\n]+)/gm), (m) => m[1].trim())
+      .map((s) => s.replace(/\s*#+\s*$/, "").replace(/\*\*/g, "").replace(/\*/g, "").replace(/`([^`]+)`/g, "$1").trim())
+      .filter((s) => s.length > 0 && !s.startsWith("```"));
+
+    if (matches.length === 0) {
+      const fallback = Array.from(cleanMd.matchAll(/^###?\s+([^\r\n]+)/gm), (m) => m[1].trim())
+        .map((s) => s.replace(/\s*#+\s*$/, "").replace(/\*\*/g, "").replace(/\*/g, "").replace(/`([^`]+)`/g, "$1").trim())
+        .filter((s) => s.length > 0 && !s.startsWith("```"));
+      if (fallback.length > 0) {
+        return Array.from(new Set(fallback));
+      }
+      return ["General Discussion"];
+    }
+
+    const unique = Array.from(new Set(matches));
+    return unique.length > 0 ? unique : ["General Discussion"];
+  }, [report]);
+
   return (
     <div className="w-full flex flex-col gap-4 relative pb-12">
       
@@ -721,18 +743,6 @@ export default function PaperWorkspace({
           >
             <History className="w-3.5 h-3.5 text-[#CC6F00]" />
             <span>Versions</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("ai_runs")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-              activeTab === "ai_runs"
-                ? "bg-[#F2A900] text-[#4D2A00] shadow-sm border border-[#CC6F00]/40"
-                : "bg-[#F9E6A8]/40 hover:bg-[#F9E6A8] text-[#4D2A00]/80"
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5 text-[#CC6F00]" />
-            <span>AI Runs</span>
           </button>
 
           <button
@@ -978,6 +988,7 @@ export default function PaperWorkspace({
               workspaceId={workspaceId}
               authToken={authToken}
               currentUserId={currentUserId}
+              sections={extractedSections}
             />
           </div>
         )}
@@ -1009,18 +1020,7 @@ export default function PaperWorkspace({
           </div>
         )}
 
-        {/* Tab 5: AI Runs Panel View */}
-        {activeTab === "ai_runs" && (
-          <div className="h-full">
-            <AIRunPanel
-              documentId={documentId}
-              workspaceId={workspaceId}
-              authToken={authToken}
-            />
-          </div>
-        )}
-
-        {/* Tab 6: Flowchart Visualizer */}
+        {/* Tab 5: Flowchart Visualizer */}
         {activeTab === "diagrams" && (
           <div className="p-6 bg-[#F9E6A8]/20 border border-[#CC6F00]/20 rounded-2xl flex flex-col gap-4">
             <h4 className="text-sm font-extrabold text-[#4D2A00] flex items-center gap-2">
@@ -1135,6 +1135,7 @@ export default function PaperWorkspace({
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         workspaceId={workspaceId}
+        documentId={documentId}
         documentTitle={topic}
         isOwner={isOwner}
         authToken={authToken}

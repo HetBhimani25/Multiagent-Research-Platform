@@ -102,6 +102,15 @@ export default function Home() {
   
   const [report, setReport] = useState("");
   const [queries, setQueries] = useState<string[]>([]);
+
+  // When switching to the Generate New Document view, ensure a clean, fresh state if not actively running research
+  useEffect(() => {
+    if (currentView === "generate" && !loading) {
+      setQuestion("");
+      setActiveStep("idle");
+      setQueries([]);
+    }
+  }, [currentView, loading]);
   
   // Persistent Research Documents & Workspaces
   const [savedPapers, setSavedPapers] = useState<SavedPaper[]>([]);
@@ -392,18 +401,21 @@ export default function Home() {
         }
 
         // Brief delay so user sees "Pipeline Complete" with all green checkmarks before switching to reader
-        setTimeout(() => {
-          setCurrentView("reader");
-        }, 1400);
+        await new Promise((resolve) => setTimeout(resolve, 1400));
+        setCurrentView("reader");
+        setActiveStep("idle");
+        setQueries([]);
 
       } else {
         setReport("Failed to generate research report. Please check API keys.");
         setActiveStep("idle");
+        setQueries([]);
       }
     } catch (err: any) {
       console.error("Research execution error:", err);
       setReport(`Error connecting to AI Engine: ${err.message}. Make sure Python FastAPI is running on port 8000.`);
       setActiveStep("idle");
+      setQueries([]);
     } finally {
       setLoading(false);
     }
@@ -441,7 +453,16 @@ export default function Home() {
           currentView={currentView}
           setCurrentView={(view) => {
             if (view === "generate") {
-              setQuestion("");
+              if (!loading) {
+                setQuestion("");
+                setActiveStep("idle");
+                setQueries([]);
+              }
+            }
+            if (view === "rag_assistant") {
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+              }
             }
             setCurrentView(view);
             // On mobile / small screens, auto-close drawer upon navigation
@@ -518,7 +539,11 @@ export default function Home() {
             }}
             onDeletePaper={handleDeletePaper}
             onNavigateToGenerate={() => {
-              setQuestion("");
+              if (!loading) {
+                setQuestion("");
+                setActiveStep("idle");
+                setQueries([]);
+              }
               setCurrentView("generate");
             }}
             onNavigateToRAG={(paper) => {
@@ -590,7 +615,11 @@ export default function Home() {
               }}
               onDeletePaper={handleDeletePaper}
               onNavigateToGenerate={() => {
-                setQuestion("");
+                if (!loading) {
+                  setQuestion("");
+                  setActiveStep("idle");
+                  setQueries([]);
+                }
                 setCurrentView("generate");
               }}
               onNavigateToRAG={(paper) => {
@@ -620,7 +649,9 @@ export default function Home() {
         {currentView === "rag_assistant" && (
           <DocumentRAGView 
             savedPapers={savedPapers} 
-            initialPaper={selectedPaperForRAG} 
+            initialPaper={selectedPaperForRAG}
+            currentUserId={user?.id}
+            authToken={token}
           />
         )}
 

@@ -2,14 +2,14 @@
 
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Mail, Lock, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight, BrainCircuit } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, BrainCircuit } from "lucide-react";
 
 interface LoginViewProps {
   onSwitchToSignUp: () => void;
 }
 
 export default function LoginView({ onSwitchToSignUp }: LoginViewProps) {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,17 +31,6 @@ export default function LoginView({ onSwitchToSignUp }: LoginViewProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoAccess = async () => {
-    setError("");
-    setLoading(true);
-    const res = await register("Demo Researcher", "demo@researchflow.ai", "demo123456");
-    if (!res.success) {
-      const loginRes = await login("demo@researchflow.ai", "demo123456");
-      if (!loginRes.success) setError("Demo login failed.");
-    }
-    setLoading(false);
   };
 
   return (
@@ -131,16 +120,6 @@ export default function LoginView({ onSwitchToSignUp }: LoginViewProps) {
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
-            </button>
-
-            {/* Quick Demo Access */}
-            <button
-              type="button"
-              onClick={handleDemoAccess}
-              className="w-full py-2.5 rounded-xl bg-[#F9E6A8]/50 hover:bg-[#F9E6A8] border border-[#CC6F00]/40 text-[#4D2A00] text-xs font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#CC6F00]" />
-              <span>Quick Demo Access</span>
             </button>
           </form>
 

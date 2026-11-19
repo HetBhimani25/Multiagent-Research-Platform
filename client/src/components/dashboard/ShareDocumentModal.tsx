@@ -20,6 +20,7 @@ interface ShareDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceId: string;
+  documentId?: string;
   documentTitle: string;
   isOwner: boolean;
   authToken: string | null;
@@ -42,6 +43,7 @@ export default function ShareDocumentModal({
   isOpen,
   onClose,
   workspaceId,
+  documentId,
   documentTitle,
   isOwner,
   authToken,
@@ -69,17 +71,24 @@ export default function ShareDocumentModal({
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const targetId = workspaceId || documentId || "";
+
   useEffect(() => {
-    if (isOpen && workspaceId && isOwner && authToken) {
-      fetchInvitations();
+    if (isOpen) {
+      setErrorMsg(null);
+      setGeneratedLink(null);
+      setGeneratedCode(null);
+      if (targetId && isOwner && authToken) {
+        fetchInvitations();
+      }
     }
-  }, [isOpen, workspaceId, isOwner, authToken]);
+  }, [isOpen, targetId, isOwner, authToken]);
 
   const fetchInvitations = async () => {
-    if (!authToken || !workspaceId) return;
+    if (!authToken || !targetId) return;
     setLoadingInvites(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/workspaces/${workspaceId}/invitations`, {
+      const res = await fetch(`http://localhost:4000/api/workspaces/${targetId}/invitations`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
@@ -93,12 +102,24 @@ export default function ShareDocumentModal({
     }
   };
 
+  const handleTabChange = (tab: "link" | "code" | "active") => {
+    setActiveTab(tab);
+    setErrorMsg(null);
+  };
+
   const handleGenerateLink = async () => {
-    if (!authToken || !workspaceId) return;
+    if (!authToken) {
+      setErrorMsg("Authentication required. Please log in.");
+      return;
+    }
+    if (!targetId) {
+      setErrorMsg("Workspace ID not found for this document.");
+      return;
+    }
     setIsGeneratingLink(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`http://localhost:4000/api/workspaces/${workspaceId}/invitations/link`, {
+      const res = await fetch(`http://localhost:4000/api/workspaces/${targetId}/invitations/link`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,21 +136,28 @@ export default function ShareDocumentModal({
         setGeneratedLink(data.data.inviteLink);
         fetchInvitations();
       } else {
-        setErrorMsg(data.message || "Failed to generate invite link.");
+        setErrorMsg(data.message || data.error || "Failed to generate invite link.");
       }
     } catch (err: any) {
-      setErrorMsg("Network error: " + err.message);
+      setErrorMsg(err.message || "Network error generating link.");
     } finally {
       setIsGeneratingLink(false);
     }
   };
 
   const handleGenerateCode = async () => {
-    if (!authToken || !workspaceId) return;
+    if (!authToken) {
+      setErrorMsg("Authentication required. Please log in.");
+      return;
+    }
+    if (!targetId) {
+      setErrorMsg("Workspace ID not found for this document.");
+      return;
+    }
     setIsGeneratingCode(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`http://localhost:4000/api/workspaces/${workspaceId}/invitations/code`, {
+      const res = await fetch(`http://localhost:4000/api/workspaces/${targetId}/invitations/code`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -146,27 +174,30 @@ export default function ShareDocumentModal({
         setGeneratedCode(data.data.inviteCode);
         fetchInvitations();
       } else {
-        setErrorMsg(data.message || "Failed to generate invite code.");
+        setErrorMsg(data.message || data.error || "Failed to generate invite code.");
       }
     } catch (err: any) {
-      setErrorMsg("Network error: " + err.message);
+      setErrorMsg(err.message || "Network error generating code.");
     } finally {
       setIsGeneratingCode(false);
     }
   };
 
   const handleRevokeInvitation = async (invitationId: string) => {
-    if (!authToken || !workspaceId) return;
+    if (!authToken || !targetId) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/workspaces/${workspaceId}/invitations/${invitationId}`, {
+      const res = await fetch(`http://localhost:4000/api/workspaces/${targetId}/invitations/${invitationId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
         fetchInvitations();
+      } else {
+        setErrorMsg(data.message || data.error || "Failed to revoke invitation.");
       }
-    } catch (err) {
-      console.error("Failed to revoke invitation:", err);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error revoking invitation.");
     }
   };
 
@@ -208,7 +239,7 @@ export default function ShareDocumentModal({
         {/* Tab Navigation */}
         <div className="flex border-b border-[#CC6F00]/20 bg-[#F9E6A8]/30 px-6 pt-3 gap-2 shrink-0">
           <button
-            onClick={() => setActiveTab("link")}
+            onClick={() => handleTabChange("link")}
             className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all flex items-center gap-1.5 border-t-2 border-x-2 ${
               activeTab === "link"
                 ? "bg-white text-[#4D2A00] border-[#CC6F00]/30 shadow-xs"
@@ -220,7 +251,7 @@ export default function ShareDocumentModal({
           </button>
 
           <button
-            onClick={() => setActiveTab("code")}
+            onClick={() => handleTabChange("code")}
             className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all flex items-center gap-1.5 border-t-2 border-x-2 ${
               activeTab === "code"
                 ? "bg-white text-[#4D2A00] border-[#CC6F00]/30 shadow-xs"
@@ -233,7 +264,7 @@ export default function ShareDocumentModal({
 
           {isOwner && (
             <button
-              onClick={() => setActiveTab("active")}
+              onClick={() => handleTabChange("active")}
               className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all flex items-center gap-1.5 border-t-2 border-x-2 ${
                 activeTab === "active"
                   ? "bg-white text-[#4D2A00] border-[#CC6F00]/30 shadow-xs"

@@ -611,6 +611,7 @@ WorkspaceMember.belongsTo(User, { as: 'user', foreignKey: 'userId' });
 WorkspaceMember.belongsTo(ResearchWorkspace, { as: 'workspace', foreignKey: 'workspaceId' });
 
 ResearchWorkspace.hasMany(WorkspaceInvitation, { as: 'invitations', foreignKey: 'workspaceId' });
+WorkspaceInvitation.belongsTo(ResearchWorkspace, { as: 'workspace', foreignKey: 'workspaceId' });
 WorkspaceInvitation.belongsTo(User, { as: 'inviter', foreignKey: 'invitedBy' });
 
 ResearchDocument.hasMany(Comment, { as: 'comments', foreignKey: 'documentId' });

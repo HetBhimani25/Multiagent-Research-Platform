@@ -16,47 +16,58 @@ function requireWorkspacePermission(requiredPermission) {
       let workspaceId = req.params?.workspaceId || req.body?.workspaceId || req.query?.workspaceId;
       const documentId = req.params?.documentId || req.body?.documentId || req.query?.documentId;
 
-      // If workspaceId is not direct, resolve from documentId
-      if (!workspaceId && documentId) {
-        const workspace = await ResearchWorkspace.findOne({
-          where: { documentId, status: 'ACTIVE' },
+      let workspace = null;
+
+      // 1. Try to find workspace by workspaceId directly
+      if (workspaceId) {
+        workspace = await ResearchWorkspace.findByPk(workspaceId, {
+          include: [{ model: ResearchDocument, as: 'document' }],
         });
-        if (workspace) {
-          workspaceId = workspace.id;
-        } else {
-          // Check if document exists and user is owner
-          const doc = await ResearchDocument.findByPk(documentId);
-          if (!doc) {
-            return res.status(404).json({ error: 'DOCUMENT_NOT_FOUND', message: 'Document not found.' });
-          }
+
+        // If not found by primary key, check if workspaceId was actually a documentId!
+        if (!workspace) {
+          workspace = await ResearchWorkspace.findOne({
+            where: { documentId: workspaceId, status: 'ACTIVE' },
+            include: [{ model: ResearchDocument, as: 'document' }],
+          });
+        }
+      }
+
+      // 2. If not found yet and we have a documentId parameter, find by documentId
+      if (!workspace && documentId) {
+        workspace = await ResearchWorkspace.findOne({
+          where: { documentId, status: 'ACTIVE' },
+          include: [{ model: ResearchDocument, as: 'document' }],
+        });
+      }
+
+      // 3. If workspace does not exist at all, check if document exists and auto-create workspace for owner
+      const effectiveDocId = documentId || workspaceId;
+      if (!workspace && effectiveDocId) {
+        const doc = await ResearchDocument.findByPk(effectiveDocId);
+        if (doc) {
           if (doc.ownerId === req.user.id) {
             // Auto-create workspace if it was missing for this document
-            const newWorkspace = await ResearchWorkspace.create({
+            workspace = await ResearchWorkspace.create({
               name: `Workspace: ${doc.topic}`,
+              description: `Collaborative research environment for "${doc.topic}"`,
               ownerId: req.user.id,
               documentId: doc.id,
               status: 'ACTIVE',
               visibility: 'PRIVATE',
             });
             await WorkspaceMember.create({
-              workspaceId: newWorkspace.id,
+              workspaceId: workspace.id,
               userId: req.user.id,
               role: 'OWNER',
               status: 'ACTIVE',
               joinedAt: new Date(),
             });
-            workspaceId = newWorkspace.id;
+            workspace.document = doc;
+            workspaceId = workspace.id;
           }
         }
       }
-
-      if (!workspaceId) {
-        return res.status(400).json({ error: 'WORKSPACE_ID_REQUIRED', message: 'Workspace ID or Document ID required.' });
-      }
-
-      const workspace = await ResearchWorkspace.findByPk(workspaceId, {
-        include: [{ model: ResearchDocument, as: 'document' }],
-      });
 
       if (!workspace || workspace.status === 'DELETED') {
         return res.status(404).json({ error: 'WORKSPACE_NOT_FOUND', message: 'Workspace not found.' });

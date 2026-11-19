@@ -348,6 +348,7 @@ export default function MyDocumentsView({
           isOpen={!!sharePaper}
           onClose={() => setSharePaper(null)}
           workspaceId={sharePaper.workspaceId || ""}
+          documentId={sharePaper.id}
           documentTitle={sharePaper.topic}
           isOwner={sharePaper.isOwner !== false}
           authToken={authToken}

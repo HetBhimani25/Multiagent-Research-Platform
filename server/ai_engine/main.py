@@ -41,6 +41,8 @@ class RAGQueryRequest(BaseModel):
     query: str
     doc_id: Optional[str] = "all"
     top_k: Optional[int] = 5
+    allowed_doc_ids: Optional[List[str]] = None
+    user_id: Optional[str] = None
 
 class RAGIndexRequest(BaseModel):
     doc_id: str
@@ -51,6 +53,7 @@ class RAGIndexRequest(BaseModel):
 
 class SyncPapersRequest(BaseModel):
     papers: List[Dict[str, Any]]
+    user_id: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -85,7 +88,7 @@ async def execute_research(payload: ResearchRequest):
                 title=payload.question,
                 content=result["report"],
                 source_type="generated_paper",
-                metadata={"depth": pipeline_depth, "doc_type": doc_type}
+                metadata={"depth": pipeline_depth, "doc_type": doc_type, "user_id": payload.initiated_by}
             )
 
         return {
@@ -122,7 +125,7 @@ async def execute_research_stream(payload: ResearchRequest):
                             title=payload.question,
                             content=event["data"]["report"],
                             source_type="generated_paper",
-                            metadata={"depth": pipeline_depth, "doc_type": doc_type}
+                            metadata={"depth": pipeline_depth, "doc_type": doc_type, "user_id": payload.initiated_by}
                         )
                     except Exception as idx_err:
                         print("Auto index error:", idx_err)
@@ -145,6 +148,8 @@ async def rag_query_endpoint(payload: RAGQueryRequest):
         result = await execute_rag_query(
             query=payload.query.strip(),
             doc_id=payload.doc_id,
+            allowed_doc_ids=payload.allowed_doc_ids,
+            user_id=payload.user_id,
             top_k=payload.top_k or 5
         )
         return {
@@ -195,7 +200,11 @@ async def rag_sync_papers_endpoint(payload: SyncPapersRequest):
                     title=p_topic,
                     content=p_report,
                     source_type="saved_paper",
-                    metadata={"depth": p.get("depth"), "docType": p.get("docType")}
+                    metadata={
+                        "depth": p.get("depth"), 
+                        "docType": p.get("docType"),
+                        "user_id": payload.user_id or p.get("ownerId") or p.get("userId")
+                    }
                 )
                 synced += 1
                 total_new_chunks += c_count
@@ -210,7 +219,10 @@ async def rag_sync_papers_endpoint(payload: SyncPapersRequest):
         raise HTTPException(status_code=500, detail=f"Sync error: {str(e)}")
 
 @app.post("/api/rag/upload")
-async def rag_upload_endpoint(file: UploadFile = File(...)):
+async def rag_upload_endpoint(
+    file: UploadFile = File(...),
+    user_id: Optional[str] = Form(None)
+):
     """Uploads and indexes an external document (PDF, Markdown, TXT) into the vector store."""
     try:
         filename = file.filename or "uploaded_document.txt"
@@ -244,7 +256,7 @@ async def rag_upload_endpoint(file: UploadFile = File(...)):
             title=title,
             content=extracted_text,
             source_type="uploaded_file",
-            metadata={"filename": filename, "file_size": len(contents)}
+            metadata={"filename": filename, "file_size": len(contents), "user_id": user_id}
         )
 
         return {
@@ -263,11 +275,15 @@ async def rag_upload_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Failed to process upload: {str(e)}")
 
 @app.get("/api/rag/stats")
-def rag_stats_endpoint():
+def rag_stats_endpoint(
+    user_id: Optional[str] = None,
+    allowed_doc_ids: Optional[str] = None
+):
     """Returns vector store health, document catalog, and indexing metrics."""
+    allowed_ids_list = [i.strip() for i in allowed_doc_ids.split(",") if i.strip()] if allowed_doc_ids else None
     return {
         "status": "success",
-        "data": rag_store.get_stats()
+        "data": rag_store.get_stats(allowed_doc_ids=allowed_ids_list, user_id=user_id)
     }
 
 @app.delete("/api/rag/document/{doc_id}")
