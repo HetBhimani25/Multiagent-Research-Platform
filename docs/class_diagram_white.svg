@@ -1,0 +1,381 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1350" width="100%" height="100%" style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#000000" />
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <style>
+    .class-box { fill: #ffffff; stroke: #000000; stroke-width: 1.5px; }
+    .header-box { fill: #ffffff; stroke: #000000; stroke-width: 1.5px; }
+    .header-title { font-size: 14px; font-weight: 700; fill: #000000; text-anchor: middle; }
+    .attr-text { font-size: 11.5px; fill: #111111; font-family: 'Consolas', 'Courier New', monospace; }
+    .attr-pk { font-weight: bold; fill: #000000; }
+    .divider { stroke: #000000; stroke-width: 1px; }
+    .conn-line { fill: none; stroke: #000000; stroke-width: 1.4px; }
+    .mult-text { font-size: 11px; font-weight: bold; fill: #000000; }
+    .label-rect { fill: #ffffff; }
+    .label-text { font-size: 11px; font-weight: 600; fill: #000000; text-anchor: middle; }
+  </style>
+
+  <!-- ================= LINES & ASSOCIATIONS LAYER ================= -->
+
+  <!-- 1. User -> ActivityLog (logs) -->
+  <path d="M 100 240 L 100 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="92" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="75" y="325" width="50" height="18" class="label-rect" />
+  <text x="100" y="338" class="label-text">logs</text>
+  <text x="92" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 2. User -> AgentRun (initiates) -->
+  <path d="M 125 240 L 125 280 L 390 280 L 390 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="117" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="360" y="325" width="60" height="18" class="label-rect" />
+  <text x="390" y="338" class="label-text">initiates</text>
+  <text x="382" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 3. User -> ResearchWorkspace (owns) -->
+  <path d="M 150 240 L 150 295 L 685 295 L 685 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="142" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="660" y="325" width="50" height="18" class="label-rect" />
+  <text x="685" y="338" class="label-text">owns</text>
+  <text x="677" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 4. User -> ResearchDocument (creates) -->
+  <path d="M 175 240 L 175 310 L 1025 310 L 1025 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="167" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="995" y="325" width="60" height="18" class="label-rect" />
+  <text x="1025" y="338" class="label-text">creates</text>
+  <text x="1017" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 5. User -> RefreshToken (issues) -->
+  <path d="M 200 240 L 200 325 L 1365 325 L 1365 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="192" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="1340" y="325" width="50" height="18" class="label-rect" />
+  <text x="1365" y="338" class="label-text">issues</text>
+  <text x="1357" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 6. User -> Notification (receives) -->
+  <path d="M 225 240 L 225 340 L 1695 340 L 1695 440" class="conn-line" marker-end="url(#arrow)" />
+  <text x="217" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="1665" y="325" width="60" height="18" class="label-rect" />
+  <text x="1695" y="338" class="label-text">receives</text>
+  <text x="1687" y="432" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 7. User -> WorkspaceMember (references) -->
+  <path d="M 250 240 L 250 355 L 260 355 L 260 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="242" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="220" y="580" width="80" height="18" class="label-rect" />
+  <text x="260" y="593" class="label-text">references</text>
+  <text x="252" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 8. User -> WorkspaceInvitation (invitedBy) -->
+  <path d="M 275 240 L 275 370 L 530 370 L 530 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="267" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="495" y="580" width="70" height="18" class="label-rect" />
+  <text x="530" y="593" class="label-text">invitedBy</text>
+  <text x="522" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 9. User -> Task (creator / assignee) -->
+  <path d="M 300 240 L 300 385 L 835 385 L 835 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="292" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="780" y="580" width="110" height="18" class="label-rect" />
+  <text x="835" y="593" class="label-text">creator / assignee</text>
+  <text x="827" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 10. User -> Comment (author) -->
+  <path d="M 325 240 L 325 400 L 1150 400 L 1150 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="317" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="1125" y="580" width="50" height="18" class="label-rect" />
+  <text x="1150" y="593" class="label-text">author</text>
+  <text x="1142" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 11. User -> DocumentVersion (createdBy) -->
+  <path d="M 350 240 L 350 415 L 1485 415 L 1485 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="342" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="1450" y="580" width="70" height="18" class="label-rect" />
+  <text x="1485" y="593" class="label-text">createdBy</text>
+  <text x="1477" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 12. User -> DocumentLock (lockedBy) -->
+  <path d="M 375 240 L 375 260 L 1820 260 L 1820 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="367" y="258" class="mult-text" text-anchor="end">1</text>
+  <rect x="1790" y="580" width="60" height="18" class="label-rect" />
+  <text x="1820" y="593" class="label-text">lockedBy</text>
+  <text x="1812" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 13. ResearchWorkspace <-> ResearchDocument (1 to 1) -->
+  <line x1="780" y1="520" x2="920" y2="520" class="conn-line" />
+  <text x="790" y="512" class="mult-text">1</text>
+  <text x="905" y="512" class="mult-text">1</text>
+
+  <!-- 14. ResearchWorkspace -> WorkspaceMember (contains) -->
+  <path d="M 660 635 L 660 690 L 320 690 L 320 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="650" y="655" class="mult-text">1</text>
+  <rect x="375" y="680" width="60" height="18" class="label-rect" />
+  <text x="405" y="693" class="label-text">contains</text>
+  <text x="312" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 15. ResearchWorkspace -> WorkspaceInvitation (issues) -->
+  <path d="M 700 635 L 700 710 L 600 710 L 600 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="710" y="655" class="mult-text">1</text>
+  <rect x="625" y="700" width="50" height="18" class="label-rect" />
+  <text x="650" y="713" class="label-text">issues</text>
+  <text x="592" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 16. ResearchDocument -> Task (assigns) -->
+  <path d="M 945 700 L 945 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="935" y="720" class="mult-text" text-anchor="end">1</text>
+  <rect x="915" y="760" width="60" height="18" class="label-rect" />
+  <text x="945" y="773" class="label-text">assigns</text>
+  <text x="937" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 17. ResearchDocument -> Comment (has) -->
+  <path d="M 990 700 L 990 730 L 1220 730 L 1220 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="980" y="720" class="mult-text" text-anchor="end">1</text>
+  <rect x="1090" y="720" width="40" height="18" class="label-rect" />
+  <text x="1110" y="733" class="label-text">has</text>
+  <text x="1212" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 18. ResearchDocument -> DocumentVersion (tracks) -->
+  <path d="M 1035 700 L 1035 745 L 1530 745 L 1530 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="1025" y="720" class="mult-text" text-anchor="end">1</text>
+  <rect x="1265" y="735" width="50" height="18" class="label-rect" />
+  <text x="1290" y="748" class="label-text">tracks</text>
+  <text x="1522" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 19. ResearchDocument -> DocumentLock (guards) -->
+  <path d="M 1070 700 L 1070 760 L 1740 760 L 1740 840" class="conn-line" marker-end="url(#arrow)" />
+  <text x="1060" y="720" class="mult-text" text-anchor="end">1</text>
+  <rect x="1390" y="750" width="50" height="18" class="label-rect" />
+  <text x="1415" y="763" class="label-text">guards</text>
+  <text x="1732" y="832" class="mult-text" text-anchor="end">0..*</text>
+
+  <!-- 20. Comment self-loop (replies) -->
+  <path d="M 1160 960 L 1115 960 L 1115 1010 L 1160 1010" class="conn-line" marker-end="url(#arrow)" />
+  <text x="1120" y="955" class="mult-text">0..1</text>
+  <rect x="1080" y="977" width="45" height="16" class="label-rect" />
+  <text x="1102" y="989" class="label-text" style="font-size:10px;">replies</text>
+  <text x="1120" y="1023" class="mult-text">0..*</text>
+
+
+  <!-- ================= CLASSES & ENTITIES LAYER ================= -->
+
+  <!-- 1. USER (Top-Left) -->
+  <g id="entity-User" transform="translate(60, 40)">
+    <rect x="0" y="0" width="330" height="200" class="class-box" />
+    <rect x="0" y="0" width="330" height="30" class="header-box" />
+    <text x="165" y="20" class="header-title">User</text>
+    <text x="12" y="50" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="12" y="68" class="attr-text">- fullName: String(100)</text>
+    <text x="12" y="86" class="attr-text">- email: String(255) [Unique]</text>
+    <text x="12" y="104" class="attr-text">- password: String(255)</text>
+    <text x="12" y="122" class="attr-text">- tokenVersion: Integer</text>
+    <line x1="0" y1="135" x2="330" y2="135" class="divider" />
+    <text x="12" y="156" class="attr-text">+ validatePassword(plainPassword): Boolean</text>
+    <text x="12" y="176" class="attr-text">+ toJSON(): Object</text>
+  </g>
+
+  <!-- 2. ACTIVITY LOG (Middle Col 1) -->
+  <g id="entity-ActivityLog" transform="translate(30, 440)">
+    <rect x="0" y="0" width="220" height="195" class="class-box" />
+    <rect x="0" y="0" width="220" height="28" class="header-box" />
+    <text x="110" y="19" class="header-title">ActivityLog</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- userId: FK: UUID</text>
+    <text x="10" y="118" class="attr-text">- action: String(50)</text>
+    <text x="10" y="136" class="attr-text">- entityType: String(50)</text>
+    <text x="10" y="154" class="attr-text">- entityId: UUID</text>
+    <text x="10" y="172" class="attr-text">- metadata: JSONB</text>
+  </g>
+
+  <!-- 3. AGENT RUN (Middle Col 2) -->
+  <g id="entity-AgentRun" transform="translate(280, 440)">
+    <rect x="0" y="0" width="230" height="265" class="class-box" />
+    <rect x="0" y="0" width="230" height="28" class="header-box" />
+    <text x="115" y="19" class="header-title">AgentRun</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- initiatedBy: FK: UUID</text>
+    <text x="10" y="118" class="attr-text">- runType: String(50)</text>
+    <text x="10" y="136" class="attr-text">- agentName: String(50)</text>
+    <text x="10" y="154" class="attr-text">- status: Enum</text>
+    <text x="10" y="172" class="attr-text">- input: JSONB</text>
+    <text x="10" y="190" class="attr-text">- output: JSONB</text>
+    <text x="10" y="208" class="attr-text">- startedAt: DateTime</text>
+    <text x="10" y="226" class="attr-text">- completedAt: DateTime</text>
+    <text x="10" y="244" class="attr-text">- error: Text</text>
+  </g>
+
+  <!-- 4. RESEARCH WORKSPACE (Middle Col 3) -->
+  <g id="entity-ResearchWorkspace" transform="translate(560, 440)">
+    <rect x="0" y="0" width="220" height="195" class="class-box" />
+    <rect x="0" y="0" width="220" height="28" class="header-box" />
+    <text x="110" y="19" class="header-title">ResearchWorkspace</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- name: String(300)</text>
+    <text x="10" y="82" class="attr-text">- description: Text</text>
+    <text x="10" y="100" class="attr-text">- ownerId: FK: UUID</text>
+    <text x="10" y="118" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="136" class="attr-text">- status: Enum</text>
+    <text x="10" y="154" class="attr-text">- visibility: Enum</text>
+  </g>
+
+  <!-- 5. RESEARCH DOCUMENT (Middle Col 4) -->
+  <g id="entity-ResearchDocument" transform="translate(920, 440)">
+    <rect x="0" y="0" width="230" height="260" class="class-box" />
+    <rect x="0" y="0" width="230" height="28" class="header-box" />
+    <text x="115" y="19" class="header-title">ResearchDocument</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- ownerId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- topic: String(500)</text>
+    <text x="10" y="100" class="attr-text">- report: Text</text>
+    <text x="10" y="118" class="attr-text">- depth: String(20)</text>
+    <text x="10" y="136" class="attr-text">- format: String(20)</text>
+    <text x="10" y="154" class="attr-text">- status: Enum</text>
+    <text x="10" y="172" class="attr-text">- mermaidDiagram: Text</text>
+    <text x="10" y="190" class="attr-text">- docType: String(50)</text>
+    <text x="10" y="208" class="attr-text">- metadata: JSONB</text>
+  </g>
+
+  <!-- 6. REFRESH TOKEN (Middle Col 5) -->
+  <g id="entity-RefreshToken" transform="translate(1250, 440)">
+    <rect x="0" y="0" width="220" height="195" class="class-box" />
+    <rect x="0" y="0" width="220" height="28" class="header-box" />
+    <text x="110" y="19" class="header-title">RefreshToken</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- userId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- tokenHash: String(128)</text>
+    <text x="10" y="100" class="attr-text">- expiresAt: DateTime</text>
+    <text x="10" y="118" class="attr-text">- revoked: Boolean</text>
+    <text x="10" y="136" class="attr-text">- replacedByToken: String</text>
+    <text x="10" y="154" class="attr-text">- family: String</text>
+  </g>
+
+  <!-- 7. NOTIFICATION (Middle Col 6) -->
+  <g id="entity-Notification" transform="translate(1580, 440)">
+    <rect x="0" y="0" width="220" height="210" class="class-box" />
+    <rect x="0" y="0" width="220" height="28" class="header-box" />
+    <text x="110" y="19" class="header-title">Notification</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- userId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- type: String(50)</text>
+    <text x="10" y="118" class="attr-text">- title: String(300)</text>
+    <text x="10" y="136" class="attr-text">- message: Text</text>
+    <text x="10" y="154" class="attr-text">- entityType: String(50)</text>
+    <text x="10" y="172" class="attr-text">- entityId: UUID</text>
+    <text x="10" y="190" class="attr-text">- isRead: Boolean</text>
+  </g>
+
+
+  <!-- ================= BOTTOM ROW ================= -->
+
+  <!-- 8. WORKSPACE MEMBER (Bottom Col 1) -->
+  <g id="entity-WorkspaceMember" transform="translate(170, 840)">
+    <rect x="0" y="0" width="215" height="195" class="class-box" />
+    <rect x="0" y="0" width="215" height="28" class="header-box" />
+    <text x="107" y="19" class="header-title">WorkspaceMember</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- userId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- role: Enum</text>
+    <text x="10" y="118" class="attr-text">- status: Enum</text>
+    <text x="10" y="136" class="attr-text">- joinedAt: DateTime</text>
+    <text x="10" y="154" class="attr-text">- invitedAt: DateTime</text>
+    <text x="10" y="172" class="attr-text">- lastActiveAt: DateTime</text>
+  </g>
+
+  <!-- 9. WORKSPACE INVITATION (Bottom Col 2) -->
+  <g id="entity-WorkspaceInvitation" transform="translate(470, 840)">
+    <rect x="0" y="0" width="225" height="275" class="class-box" />
+    <rect x="0" y="0" width="225" height="28" class="header-box" />
+    <text x="112" y="19" class="header-title">WorkspaceInvitation</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- invitedBy: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- inviteType: Enum</text>
+    <text x="10" y="118" class="attr-text">- tokenHash: String(128)</text>
+    <text x="10" y="136" class="attr-text">- codeHash: String(128)</text>
+    <text x="10" y="154" class="attr-text">- inviteCode: String(50)</text>
+    <text x="10" y="172" class="attr-text">- targetEmail: String</text>
+    <text x="10" y="190" class="attr-text">- role: Enum</text>
+    <text x="10" y="208" class="attr-text">- status: Enum</text>
+    <text x="10" y="226" class="attr-text">- expiresAt: DateTime</text>
+    <text x="10" y="244" class="attr-text">- maxUses: Integer</text>
+    <text x="10" y="262" class="attr-text">- usesCount: Integer</text>
+  </g>
+
+  <!-- 10. TASK (Bottom Col 3) -->
+  <g id="entity-Task" transform="translate(800, 840)">
+    <rect x="0" y="0" width="225" height="260" class="class-box" />
+    <rect x="0" y="0" width="225" height="28" class="header-box" />
+    <text x="112" y="19" class="header-title">Task</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- title: String(300)</text>
+    <text x="10" y="118" class="attr-text">- description: Text</text>
+    <text x="10" y="136" class="attr-text">- createdBy: FK: UUID</text>
+    <text x="10" y="154" class="attr-text">- assignedTo: FK: UUID</text>
+    <text x="10" y="172" class="attr-text">- priority: Enum</text>
+    <text x="10" y="190" class="attr-text">- status: Enum</text>
+    <text x="10" y="208" class="attr-text">- sectionId: String</text>
+    <text x="10" y="226" class="attr-text">- dueDate: DateTime</text>
+    <text x="10" y="244" class="attr-text">- completedAt: DateTime</text>
+  </g>
+
+  <!-- 11. COMMENT (Bottom Col 4) -->
+  <g id="entity-Comment" transform="translate(1160, 840)">
+    <rect x="0" y="0" width="225" height="255" class="class-box" />
+    <rect x="0" y="0" width="225" height="28" class="header-box" />
+    <text x="112" y="19" class="header-title">Comment</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- sectionId: String</text>
+    <text x="10" y="118" class="attr-text">- authorId: FK: UUID</text>
+    <text x="10" y="136" class="attr-text">- content: Text</text>
+    <text x="10" y="154" class="attr-text">- parentCommentId: FK: UUID</text>
+    <text x="10" y="172" class="attr-text">- commentType: Enum</text>
+    <text x="10" y="190" class="attr-text">- status: Enum</text>
+    <text x="10" y="208" class="attr-text">- resolvedAt: DateTime</text>
+    <text x="10" y="226" class="attr-text">- resolvedBy: FK: UUID</text>
+  </g>
+
+  <!-- 12. DOCUMENT VERSION (Bottom Col 5) -->
+  <g id="entity-DocumentVersion" transform="translate(1460, 840)">
+    <rect x="0" y="0" width="220" height="200" class="class-box" />
+    <rect x="0" y="0" width="220" height="28" class="header-box" />
+    <text x="110" y="19" class="header-title">DocumentVersion</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- workspaceId: FK: UUID</text>
+    <text x="10" y="100" class="attr-text">- versionNumber: Integer</text>
+    <text x="10" y="118" class="attr-text">- createdBy: FK: UUID</text>
+    <text x="10" y="136" class="attr-text">- content: Text</text>
+    <text x="10" y="154" class="attr-text">- metadata: JSONB</text>
+    <text x="10" y="172" class="attr-text">- changeSummary: String(500)</text>
+  </g>
+
+  <!-- 13. DOCUMENT LOCK (Bottom Col 6) -->
+  <g id="entity-DocumentLock" transform="translate(1720, 840)">
+    <rect x="0" y="0" width="210" height="175" class="class-box" />
+    <rect x="0" y="0" width="210" height="28" class="header-box" />
+    <text x="105" y="19" class="header-title">DocumentLock</text>
+    <text x="10" y="46" class="attr-text">- id: <tspan class="attr-pk">PK: UUID</tspan></text>
+    <text x="10" y="64" class="attr-text">- documentId: FK: UUID</text>
+    <text x="10" y="82" class="attr-text">- sectionId: String</text>
+    <text x="10" y="100" class="attr-text">- lockedBy: FK: UUID</text>
+    <text x="10" y="118" class="attr-text">- lockType: Enum</text>
+    <text x="10" y="136" class="attr-text">- expiresAt: DateTime</text>
+  </g>
+
+</svg>

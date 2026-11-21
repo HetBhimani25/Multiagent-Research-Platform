@@ -27,7 +27,13 @@ export default function CollaborationView({ savedPapers, onOpenCollab }: Collabo
     setJoinModalOpen(false);
     setInviteCodeInput("");
     if (onOpenCollab) {
-      onOpenCollab(null, cleanCode);
+      const prefix = cleanCode.replace("RF-COLLAB-", "");
+      const matched = savedPapers.find(
+        (p) =>
+          `RF-COLLAB-${p.id.substring(0, 6).toUpperCase()}` === cleanCode ||
+          p.id.toUpperCase().startsWith(prefix)
+      );
+      onOpenCollab(matched || null, cleanCode);
     }
   };
 

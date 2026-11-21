@@ -985,9 +985,10 @@ export default function PaperWorkspace({
           <div className="h-full">
             <CommentPanel
               documentId={documentId}
-              workspaceId={workspaceId}
+              workspaceId={workspaceId || documentId}
               authToken={authToken}
               currentUserId={currentUserId}
+              isOwner={isOwner}
               sections={extractedSections}
             />
           </div>
@@ -998,9 +999,10 @@ export default function PaperWorkspace({
           <div className="h-full">
             <TaskPanel
               documentId={documentId}
-              workspaceId={workspaceId}
+              workspaceId={workspaceId || documentId}
               authToken={authToken}
               currentUserId={currentUserId}
+              isOwner={isOwner}
             />
           </div>
         )}

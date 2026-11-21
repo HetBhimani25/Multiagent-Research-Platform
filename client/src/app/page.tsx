@@ -660,10 +660,23 @@ export default function Home() {
       {/* Real-Time Collaborative Co-Authoring Modal (Socket.io) */}
       <CollabEditorModal
         isOpen={collabModalOpen}
-        onClose={() => setCollabModalOpen(false)}
+        onClose={() => {
+          setCollabModalOpen(false);
+          fetchUserDocuments();
+        }}
         roomId={collabRoomId}
         initialTopic={collabTopic}
         initialContent={collabContent}
+        currentUser={user}
+        onDocumentUpdated={(updatedContent) => {
+          setCollabContent(updatedContent);
+          const matched = savedPapers.find(
+            (p) => `RF-COLLAB-${p.id.substring(0, 6).toUpperCase()}` === collabRoomId || p.id === collabRoomId
+          );
+          if (matched) {
+            matched.report = updatedContent;
+          }
+        }}
       />
 
       {/* Notifications Drawer */}

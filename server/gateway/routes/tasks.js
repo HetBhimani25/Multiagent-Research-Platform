@@ -43,13 +43,15 @@ router.post('/documents/:documentId/tasks', verifyToken, requireWorkspacePermiss
       return res.status(400).json({ error: 'TITLE_REQUIRED', message: 'Task title is required.' });
     }
 
+    const safeAssignedTo = (assignedTo && typeof assignedTo === 'string' && assignedTo.trim() !== '') ? assignedTo.trim() : null;
+
     const task = await Task.create({
       workspaceId: req.workspace.id,
       documentId,
       title: title.trim(),
       description: description || '',
       createdBy: req.user.id,
-      assignedTo: assignedTo || null,
+      assignedTo: safeAssignedTo,
       priority,
       status: 'TODO',
       sectionId: sectionId || null,
@@ -63,9 +65,9 @@ router.post('/documents/:documentId/tasks', verifyToken, requireWorkspacePermiss
       ],
     });
 
-    if (assignedTo && assignedTo !== req.user.id) {
+    if (safeAssignedTo && safeAssignedTo !== req.user.id) {
       await Notification.create({
-        userId: assignedTo,
+        userId: safeAssignedTo,
         workspaceId: req.workspace.id,
         type: 'TASK_ASSIGNED',
         title: 'New Task Assigned',
@@ -111,11 +113,14 @@ router.patch('/tasks/:taskId', verifyToken, async (req, res) => {
     }
 
     const oldStatus = task.status;
+    const oldAssignedTo = task.assignedTo;
     if (status) task.status = status;
     if (priority) task.priority = priority;
     if (title) task.title = title.trim();
     if (description !== undefined) task.description = description;
-    if (assignedTo !== undefined) task.assignedTo = assignedTo;
+    if (assignedTo !== undefined) {
+      task.assignedTo = (assignedTo && typeof assignedTo === 'string' && assignedTo.trim() !== '') ? assignedTo.trim() : null;
+    }
     if (dueDate !== undefined) task.dueDate = dueDate ? new Date(dueDate) : null;
 
     if (status === 'COMPLETED' && oldStatus !== 'COMPLETED') {
@@ -123,6 +128,18 @@ router.patch('/tasks/:taskId', verifyToken, async (req, res) => {
     }
 
     await task.save();
+
+    if (task.assignedTo && task.assignedTo !== oldAssignedTo && task.assignedTo !== req.user.id) {
+      await Notification.create({
+        userId: task.assignedTo,
+        workspaceId: task.workspaceId,
+        type: 'TASK_ASSIGNED',
+        title: 'New Task Assigned',
+        message: `${req.user.fullName} assigned you a task: "${task.title}".`,
+        entityType: 'task',
+        entityId: task.id,
+      });
+    }
 
     await ActivityLog.create({
       workspaceId: task.workspaceId,

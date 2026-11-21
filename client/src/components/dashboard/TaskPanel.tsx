@@ -11,7 +11,8 @@ import {
   AlertTriangle, 
   Trash2, 
   X,
-  Filter
+  Filter,
+  Users
 } from "lucide-react";
 
 interface TaskItem {
@@ -36,6 +37,8 @@ interface TaskItem {
 interface MemberOption {
   userId: string;
   fullName: string;
+  role?: string;
+  email?: string;
 }
 
 interface TaskPanelProps {
@@ -43,6 +46,8 @@ interface TaskPanelProps {
   workspaceId: string;
   authToken: string | null;
   currentUserId: string;
+  isOwner?: boolean;
+  ownerId?: string;
   members?: MemberOption[];
   onClose?: () => void;
 }
@@ -52,12 +57,19 @@ export default function TaskPanel({
   workspaceId,
   authToken,
   currentUserId,
+  isOwner = false,
+  ownerId,
   members = [],
   onClose,
 }: TaskPanelProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [filter, setFilter] = useState<"ALL" | "MY" | "TODO" | "COMPLETED">("ALL");
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Collaborators for assigning tasks
+  const [workspaceMembers, setWorkspaceMembers] = useState<MemberOption[]>([]);
+  const [workspaceOwnerId, setWorkspaceOwnerId] = useState<string | null>(ownerId || null);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
   // New task form
   const [newTitle, setNewTitle] = useState("");
@@ -67,16 +79,57 @@ export default function TaskPanel({
   const [newDueDate, setNewDueDate] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
+  const effectiveWorkspaceId = workspaceId || documentId;
+
   useEffect(() => {
     if (documentId && authToken) {
       fetchTasks();
+      fetchMembers();
     }
-  }, [documentId, authToken]);
+  }, [documentId, workspaceId, authToken]);
+
+  useEffect(() => {
+    if (showCreateModal && authToken && effectiveWorkspaceId) {
+      fetchMembers();
+    }
+  }, [showCreateModal]);
+
+  const fetchMembers = async () => {
+    const targetId = workspaceId || documentId;
+    if (!authToken || !targetId) return;
+    setIsLoadingMembers(true);
+    try {
+      const res = await fetch(`http://localhost:4000/api/workspaces/${targetId}/members`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (!res.ok) {
+        console.warn(`[TaskPanel] Members API returned HTTP ${res.status}`);
+        return;
+      }
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        if (data.ownerId) {
+          setWorkspaceOwnerId(data.ownerId);
+        }
+        const mapped: MemberOption[] = data.data.map((m: any) => ({
+          userId: m.userId || m.user?.id || m.id,
+          fullName: m.user?.fullName || m.fullName || m.user?.email || "Collaborator",
+          role: m.role || "MEMBER",
+          email: m.user?.email,
+        }));
+        setWorkspaceMembers(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load members in TaskPanel:", err);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
 
   const fetchTasks = async () => {
     if (!authToken || !documentId) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/documents/${documentId}/tasks?workspaceId=${workspaceId}`, {
+      const res = await fetch(`http://localhost:4000/api/documents/${documentId}/tasks?workspaceId=${effectiveWorkspaceId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (!res.ok) {
@@ -105,7 +158,7 @@ export default function TaskPanel({
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          workspaceId,
+          workspaceId: effectiveWorkspaceId,
           title: newTitle.trim(),
           description: newDesc.trim(),
           priority: newPriority,
@@ -150,6 +203,25 @@ export default function TaskPanel({
     }
   };
 
+  const handleUpdateAssignee = async (taskId: string, assigneeUserId: string) => {
+    if (!authToken) return;
+    try {
+      const res = await fetch(`http://localhost:4000/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ assignedTo: assigneeUserId || null }),
+      });
+      if (res.ok) {
+        fetchTasks();
+      }
+    } catch (err) {
+      console.error("Update task assignee error:", err);
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     if (!authToken || !confirm("Delete this task?")) return;
     try {
@@ -164,6 +236,18 @@ export default function TaskPanel({
       console.error("Delete task error:", err);
     }
   };
+
+  // Combine fetched workspaceMembers and any members passed via props
+  const candidateMembers = workspaceMembers.length > 0 ? workspaceMembers : (members || []);
+
+  // Filter out the OWNER of the document:
+  // "it should don't show the name of the Owner of the Document coz he/she will assign the task to member ."
+  const assignableCollaborators = candidateMembers.filter((m) => {
+    const isOwnerRole = m.role?.toUpperCase() === "OWNER";
+    const isDocOwnerId = (workspaceOwnerId && m.userId === workspaceOwnerId) || (ownerId && m.userId === ownerId);
+    const isCurrentOwnerUser = isOwner && m.userId === currentUserId;
+    return !isOwnerRole && !isDocOwnerId && !isCurrentOwnerUser;
+  });
 
   const filteredTasks = tasks.filter((t) => {
     if (filter === "MY") return t.assignee?.id === currentUserId;
@@ -181,6 +265,11 @@ export default function TaskPanel({
     }
   };
 
+  const formatRole = (r?: string) => {
+    if (!r) return "";
+    return r.charAt(0).toUpperCase() + r.slice(1).toLowerCase();
+  };
+
   return (
     <div className="flex flex-col h-full bg-white">
       
@@ -196,7 +285,7 @@ export default function TaskPanel({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-2.5 py-1 bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-[11px] rounded-xl border border-[#CC6F00]/30 flex items-center gap-1 transition-all shadow-2xs"
+            className="px-2.5 py-1 bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-[11px] rounded-xl border border-[#CC6F00]/30 flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Task</span>
@@ -278,10 +367,33 @@ export default function TaskPanel({
                 {/* Footer Details: Assignee & Due Date */}
                 <div className="flex items-center justify-between text-[10px] font-semibold text-[#4D2A00]/70 pt-1.5 border-t border-[#CC6F00]/10">
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <User className="w-3 h-3 text-[#CC6F00]" />
-                      <span>{task.assignee ? task.assignee.fullName : "Unassigned"}</span>
-                    </span>
+                      {assignableCollaborators.length > 0 ? (
+                        <select
+                          value={task.assignee?.id || ""}
+                          onChange={(e) => handleUpdateAssignee(task.id, e.target.value)}
+                          className="bg-transparent hover:bg-[#F9E6A8]/40 border border-transparent hover:border-[#CC6F00]/30 rounded-md px-1 py-0.5 text-[10px] font-bold text-[#4D2A00] cursor-pointer focus:outline-none focus:bg-[#F9E6A8]/50"
+                          title="Click to change assignee"
+                        >
+                          <option value="">Unassigned</option>
+                          {assignableCollaborators.map((m) => (
+                            <option key={m.userId} value={m.userId}>
+                              {m.fullName} ({formatRole(m.role)})
+                            </option>
+                          ))}
+                          {task.assignee && !assignableCollaborators.some((m) => m.userId === task.assignee?.id) && (
+                            <option value={task.assignee.id}>
+                              {task.assignee.fullName} (Assigned)
+                            </option>
+                          )}
+                        </select>
+                      ) : (
+                        <span className={task.assignee ? "text-[#4D2A00] font-bold" : "text-[#4D2A00]/60"}>
+                          {task.assignee ? task.assignee.fullName : "Unassigned"}
+                        </span>
+                      )}
+                    </div>
 
                     {task.dueDate && (
                       <span className="flex items-center gap-1">
@@ -293,7 +405,7 @@ export default function TaskPanel({
 
                   <button
                     onClick={() => handleDeleteTask(task.id)}
-                    className="text-rose-600 hover:text-rose-700 p-0.5"
+                    className="text-rose-600 hover:text-rose-700 p-0.5 transition-colors"
                     title="Delete task"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -312,7 +424,7 @@ export default function TaskPanel({
           <div className="bg-white border-2 border-[#CC6F00]/40 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#CC6F00]/20 pb-3">
               <h4 className="text-sm font-extrabold text-[#4D2A00]">Create Research Task</h4>
-              <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-[#F9E6A8] rounded-xl">
+              <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-[#F9E6A8] rounded-xl cursor-pointer">
                 <X className="w-4 h-4 text-[#4D2A00]" />
               </button>
             </div>
@@ -327,7 +439,7 @@ export default function TaskPanel({
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. Verify Citation #12 or Add Benchmark Chart"
-                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-3 py-2 text-xs font-semibold text-[#4D2A00] focus:outline-none"
+                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-3 py-2 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:border-[#CC6F00]"
                   required
                 />
               </div>
@@ -341,7 +453,7 @@ export default function TaskPanel({
                   onChange={(e) => setNewDesc(e.target.value)}
                   placeholder="Details for assignee..."
                   rows={2}
-                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl p-3 text-xs font-semibold text-[#4D2A00] focus:outline-none resize-none"
+                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl p-3 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:border-[#CC6F00] resize-none"
                 />
               </div>
 
@@ -353,7 +465,7 @@ export default function TaskPanel({
                   <select
                     value={newPriority}
                     onChange={(e: any) => setNewPriority(e.target.value)}
-                    className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-2 py-1.5 text-xs font-semibold text-[#4D2A00]"
+                    className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-2 py-1.5 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:border-[#CC6F00]"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -369,17 +481,26 @@ export default function TaskPanel({
                   <select
                     value={newAssignee}
                     onChange={(e) => setNewAssignee(e.target.value)}
-                    className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-2 py-1.5 text-xs font-semibold text-[#4D2A00]"
+                    className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-2 py-1.5 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:border-[#CC6F00]"
                   >
                     <option value="">Unassigned</option>
-                    {members.map((m) => (
+                    {assignableCollaborators.map((m) => (
                       <option key={m.userId} value={m.userId}>
-                        {m.fullName}
+                        {m.fullName} ({formatRole(m.role)})
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
+
+              {assignableCollaborators.length === 0 && !isLoadingMembers && (
+                <div className="p-2.5 rounded-xl bg-[#F9E6A8]/30 border border-[#CC6F00]/20 text-[11px] text-[#4D2A00]/80 flex items-start gap-2">
+                  <Users className="w-4 h-4 text-[#CC6F00] shrink-0 mt-0.5" />
+                  <span>
+                    No collaborated members have joined this document yet. Use the <strong>Share</strong> button on the document header to generate an invite link or 12-digit code for your team.
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label className="text-[11px] font-extrabold text-[#4D2A00] block mb-1">
@@ -389,7 +510,7 @@ export default function TaskPanel({
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-3 py-1.5 text-xs font-semibold text-[#4D2A00]"
+                  className="w-full bg-[#F9E6A8]/20 border border-[#CC6F00]/30 rounded-xl px-3 py-1.5 text-xs font-semibold text-[#4D2A00] focus:outline-none focus:border-[#CC6F00]"
                 />
               </div>
 
@@ -397,14 +518,14 @@ export default function TaskPanel({
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3 py-1.5 rounded-xl border border-[#CC6F00]/30 text-xs font-bold text-[#4D2A00]"
+                  className="px-3 py-1.5 rounded-xl border border-[#CC6F00]/30 text-xs font-bold text-[#4D2A00] cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating || !newTitle.trim()}
-                  className="px-4 py-1.5 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-xs border border-[#CC6F00]/40 disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-xl bg-[#F2A900] hover:bg-[#CC6F00] hover:text-white text-[#4D2A00] font-extrabold text-xs border border-[#CC6F00]/40 disabled:opacity-50 cursor-pointer transition-colors shadow-2xs"
                 >
                   {isCreating ? "Creating..." : "Create Task"}
                 </button>

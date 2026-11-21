@@ -1,4 +1,5 @@
 const express = require('express');
+const { Op } = require('sequelize');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { requireWorkspacePermission } = require('../middleware/workspaceAuth');
 const { PERMISSIONS } = require('../middleware/permissions');
@@ -8,6 +9,7 @@ const {
   ActivityLog,
   Notification,
   WorkspaceMember,
+  ResearchWorkspace,
 } = require('../db');
 
 const router = express.Router();
@@ -21,6 +23,7 @@ router.get('/documents/:documentId/comments', verifyToken, requireWorkspacePermi
       where: {
         documentId,
         parentCommentId: null, // Top-level comments
+        status: { [Op.ne]: 'DELETED' },
       },
       include: [
         { model: User, as: 'author', attributes: ['id', 'fullName', 'email'] },
@@ -28,6 +31,10 @@ router.get('/documents/:documentId/comments', verifyToken, requireWorkspacePermi
         {
           model: Comment,
           as: 'replies',
+          where: {
+            status: { [Op.ne]: 'DELETED' },
+          },
+          required: false,
           include: [{ model: User, as: 'author', attributes: ['id', 'fullName', 'email'] }],
         },
       ],
@@ -112,7 +119,7 @@ router.patch('/comments/:commentId/resolve', verifyToken, async (req, res) => {
     const { commentId } = req.params;
     const comment = await Comment.findByPk(commentId);
 
-    if (!comment) {
+    if (!comment || comment.status === 'DELETED') {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Comment not found.' });
     }
 
@@ -152,21 +159,51 @@ router.delete('/comments/:commentId', verifyToken, async (req, res) => {
     const { commentId } = req.params;
     const comment = await Comment.findByPk(commentId);
 
-    if (!comment) {
+    if (!comment || comment.status === 'DELETED') {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Comment not found.' });
     }
 
-    // Only author or workspace owner can delete
+    // Check if user is author
+    const isAuthor = comment.authorId === req.user.id;
+
+    // Check workspace membership and roles
+    let isOwner = false;
     const member = await WorkspaceMember.findOne({
       where: { workspaceId: comment.workspaceId, userId: req.user.id, status: 'ACTIVE' },
     });
 
-    if (!member || (comment.authorId !== req.user.id && member.role !== 'OWNER')) {
-      return res.status(403).json({ error: 'ACCESS_DENIED', message: 'Cannot delete another user\'s comment.' });
+    if (member && member.role === 'OWNER') {
+      isOwner = true;
+    }
+
+    if (!isOwner) {
+      const workspace = await ResearchWorkspace.findByPk(comment.workspaceId);
+      if (workspace && workspace.ownerId === req.user.id) {
+        isOwner = true;
+      }
+    }
+
+    if (!isAuthor && !isOwner) {
+      return res.status(403).json({ error: 'ACCESS_DENIED', message: 'Only the comment author or workspace owner can delete this comment.' });
     }
 
     comment.status = 'DELETED';
     await comment.save();
+
+    // Also mark any child replies as DELETED
+    await Comment.update(
+      { status: 'DELETED' },
+      { where: { parentCommentId: comment.id } }
+    );
+
+    await ActivityLog.create({
+      workspaceId: comment.workspaceId,
+      documentId: comment.documentId,
+      userId: req.user.id,
+      action: 'COMMENT_DELETED',
+      entityType: 'comment',
+      entityId: comment.id,
+    });
 
     return res.json({ success: true, message: 'Comment deleted successfully.' });
   } catch (err) {

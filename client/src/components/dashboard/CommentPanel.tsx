@@ -16,6 +16,7 @@ import {
 interface CommentReply {
   id: string;
   content: string;
+  status?: string;
   createdAt: string;
   author: {
     id: string;
@@ -46,6 +47,7 @@ interface CommentPanelProps {
   workspaceId: string;
   authToken: string | null;
   currentUserId: string;
+  isOwner?: boolean;
   sections?: string[];
   onClose?: () => void;
 }
@@ -55,6 +57,7 @@ export default function CommentPanel({
   workspaceId,
   authToken,
   currentUserId,
+  isOwner = false,
   sections,
   onClose,
 }: CommentPanelProps) {
@@ -94,7 +97,7 @@ export default function CommentPanel({
   const fetchComments = async () => {
     if (!authToken || !documentId) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/documents/${documentId}/comments?workspaceId=${workspaceId}`, {
+      const res = await fetch(`http://localhost:4000/api/documents/${documentId}/comments?workspaceId=${workspaceId || documentId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (!res.ok) {
@@ -103,7 +106,13 @@ export default function CommentPanel({
       }
       const data = await res.json();
       if (data.success && data.data) {
-        setComments(data.data);
+        const activeComments = data.data
+          .filter((c: CommentItem) => c.status !== "DELETED")
+          .map((c: CommentItem) => ({
+            ...c,
+            replies: (c.replies || []).filter((r: CommentReply) => r.status !== "DELETED"),
+          }));
+        setComments(activeComments);
       }
     } catch (err) {
       console.error("Failed to load comments:", err);
@@ -191,14 +200,29 @@ export default function CommentPanel({
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (res.ok) {
+        // Optimistically remove comment and any matching reply from current state immediately
+        setComments((prev) =>
+          prev
+            .filter((c) => c.id !== commentId)
+            .map((c) => ({
+              ...c,
+              replies: (c.replies || []).filter((r) => r.id !== commentId),
+            }))
+        );
         fetchComments();
+      } else {
+        const data = await res.json().catch(() => null);
+        console.error("Failed to delete comment:", data);
+        alert(data?.message || "Failed to delete comment.");
       }
     } catch (err) {
       console.error("Delete comment error:", err);
+      alert("An error occurred while deleting the comment.");
     }
   };
 
   const filteredComments = comments.filter((c) => {
+    if (c.status === "DELETED") return false;
     if (filterStatus === "OPEN") return c.status === "OPEN";
     if (filterStatus === "RESOLVED") return c.status === "RESOLVED";
     return true;
@@ -212,7 +236,7 @@ export default function CommentPanel({
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-[#CC6F00]" />
           <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#4D2A00]">
-            Section Discussions ({comments.length})
+            Section Discussions ({comments.filter((c) => c.status !== "DELETED").length})
           </h4>
         </div>
 
@@ -326,7 +350,7 @@ export default function CommentPanel({
 
                   <button
                     onClick={() => handleDeleteComment(comment.id)}
-                    className="text-rose-600 hover:text-rose-700 p-0.5"
+                    className="text-rose-600 hover:text-rose-700 p-0.5 cursor-pointer transition-colors"
                     title="Delete comment"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -338,16 +362,28 @@ export default function CommentPanel({
               {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2.5 pl-3 border-l-2 border-[#CC6F00]/30 space-y-2">
                   {comment.replies.map((reply) => (
-                    <div key={reply.id} className="bg-[#F9E6A8]/20 p-2 rounded-xl text-xs">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="font-extrabold text-[#4D2A00] text-[11px]">
-                          {reply.author?.fullName}
-                        </span>
-                        <span className="text-[9px] text-[#4D2A00]/50">
-                          {new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                    <div key={reply.id} className="bg-[#F9E6A8]/20 p-2 rounded-xl text-xs flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="font-extrabold text-[#4D2A00] text-[11px]">
+                            {reply.author?.fullName}
+                          </span>
+                          <span className="text-[9px] text-[#4D2A00]/50">
+                            {new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#4D2A00] font-semibold">{reply.content}</p>
                       </div>
-                      <p className="text-[11px] text-[#4D2A00] font-semibold">{reply.content}</p>
+
+                      {(reply.author?.id === currentUserId || isOwner) && (
+                        <button
+                          onClick={() => handleDeleteComment(reply.id)}
+                          className="text-rose-500 hover:text-rose-700 p-0.5 cursor-pointer shrink-0 transition-colors opacity-70 hover:opacity-100"
+                          title="Delete reply"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

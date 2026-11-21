@@ -61,6 +61,7 @@ router.get('/:workspaceId/members', verifyToken, requireWorkspacePermission(PERM
 
     return res.json({
       success: true,
+      ownerId: req.workspace.ownerId,
       data: members,
     });
   } catch (err) {

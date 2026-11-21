@@ -67,13 +67,67 @@ app.get('/api/health', (req, res) => {
 const rooms = new Map();
 const workspacePresences = new Map(); // workspaceId -> Map(socketId -> userInfo)
 
-function getOrCreateRoom(roomId) {
+async function getOrCreateRoom(roomId, initialContent = '') {
   if (!rooms.has(roomId)) {
+    let docContent = (initialContent && initialContent.trim() !== '') ? initialContent : '';
+
+    // If no initialContent provided by client, query PostgreSQL ResearchDocument
+    if (!docContent) {
+      try {
+        const { ResearchDocument } = require('./db');
+        const { Op } = require('sequelize');
+        let doc = null;
+        if (roomId.startsWith('RF-COLLAB-')) {
+          const prefix = roomId.replace('RF-COLLAB-', '').toLowerCase();
+          doc = await ResearchDocument.findOne({
+            where: {
+              id: { [Op.like]: `${prefix}%` },
+            },
+          });
+        } else {
+          doc = await ResearchDocument.findByPk(roomId).catch(() => null);
+        }
+        if (doc && doc.report) {
+          docContent = doc.report;
+        }
+      } catch (err) {
+        console.warn('Auto-populate room document warning:', err.message);
+      }
+    }
+
     rooms.set(roomId, {
-      documentContent: `# Collaborative Research Paper\n\n**Workspace Room**: \`${roomId}\`\n\nWelcome to the real-time co-authoring workspace. Any changes made in this editor will instantly sync across all connected researchers in this session.\n\n### Executive Summary\n- Multi-Agent Autonomous Pipeline integration\n- Real-time WebSocket document sync\n- Concurrent co-authoring and live chat`,
+      documentContent: docContent,
       users: new Map(),
       messages: [],
     });
+  } else {
+    // Room exists in memory: check if it has boilerplate or empty content
+    const existing = rooms.get(roomId);
+    const isBoilerplate = existing.documentContent && existing.documentContent.includes('# Collaborative Research Paper');
+    if ((!existing.documentContent || isBoilerplate) && initialContent && initialContent.trim() !== '') {
+      existing.documentContent = initialContent;
+    } else if ((!existing.documentContent || isBoilerplate)) {
+      try {
+        const { ResearchDocument } = require('./db');
+        const { Op } = require('sequelize');
+        let doc = null;
+        if (roomId.startsWith('RF-COLLAB-')) {
+          const prefix = roomId.replace('RF-COLLAB-', '').toLowerCase();
+          doc = await ResearchDocument.findOne({
+            where: {
+              id: { [Op.like]: `${prefix}%` },
+            },
+          });
+        } else {
+          doc = await ResearchDocument.findByPk(roomId).catch(() => null);
+        }
+        if (doc && doc.report) {
+          existing.documentContent = doc.report;
+        }
+      } catch (err) {
+        console.warn('Auto-populate existing room warning:', err.message);
+      }
+    }
   }
   return rooms.get(roomId);
 }
@@ -122,7 +176,7 @@ io.on('connection', (socket) => {
   });
 
   // Editor Modal Room System (RF-COLLAB-XXXX)
-  socket.on('join_room', ({ roomId, user }) => {
+  socket.on('join_room', async ({ roomId, user, initialContent }) => {
     if (!roomId) return;
     
     if (currentRoom && currentRoom !== roomId) {
@@ -135,10 +189,10 @@ io.on('connection', (socket) => {
     }
 
     currentRoom = roomId;
-    currentUser = user || { name: 'Het Bhimani', avatar: '👨‍💻', color: '#F2A900' };
+    currentUser = user || { name: 'Researcher', avatar: '👨‍💻', color: '#F2A900' };
     socket.join(roomId);
 
-    const room = getOrCreateRoom(roomId);
+    const room = await getOrCreateRoom(roomId, initialContent);
     room.users.set(socket.id, { socketId: socket.id, ...currentUser });
 
     const activeUsers = Array.from(room.users.values());
@@ -153,11 +207,33 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('presence_update', activeUsers);
   });
 
-  socket.on('document_update', ({ roomId, content, updatedBy }) => {
+  socket.on('document_update', async ({ roomId, content, updatedBy }) => {
     const room = rooms.get(roomId);
     if (room) {
       room.documentContent = content;
       socket.to(roomId).emit('document_sync', { content, updatedBy });
+
+      // Automatically persist edits to PostgreSQL ResearchDocument if linked
+      if (roomId && content) {
+        try {
+          const { ResearchDocument } = require('./db');
+          const { Op } = require('sequelize');
+          if (roomId.startsWith('RF-COLLAB-')) {
+            const prefix = roomId.replace('RF-COLLAB-', '').toLowerCase();
+            await ResearchDocument.update(
+              { report: content },
+              { where: { id: { [Op.like]: `${prefix}%` } } }
+            );
+          } else {
+            await ResearchDocument.update(
+              { report: content },
+              { where: { id: roomId } }
+            );
+          }
+        } catch (err) {
+          console.warn('Auto-save collab doc error:', err.message);
+        }
+      }
     }
   });
 

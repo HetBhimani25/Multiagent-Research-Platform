@@ -30,6 +30,12 @@ interface CollabEditorModalProps {
   roomId: string;
   initialTopic?: string;
   initialContent?: string;
+  currentUser?: {
+    id?: string;
+    fullName?: string;
+    email?: string;
+  };
+  onDocumentUpdated?: (newContent: string) => void;
 }
 
 export default function CollabEditorModal({
@@ -38,6 +44,8 @@ export default function CollabEditorModal({
   roomId,
   initialTopic = "Collaborative Research Document",
   initialContent = "",
+  currentUser,
+  onDocumentUpdated,
 }: CollabEditorModalProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [content, setContent] = useState<string>(initialContent);
@@ -53,10 +61,22 @@ export default function CollabEditorModal({
 
   // Current user representation
   const currentUserRef = useRef({
-    name: "Het Bhimani",
+    name: currentUser?.fullName || "Researcher",
     avatar: "👨‍💻",
     color: "#F2A900",
   });
+
+  useEffect(() => {
+    if (currentUser?.fullName) {
+      currentUserRef.current.name = currentUser.fullName;
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (initialContent) {
+      setContent(initialContent);
+    }
+  }, [initialContent, roomId]);
 
   useEffect(() => {
     if (!isOpen || !roomId) return;
@@ -73,13 +93,16 @@ export default function CollabEditorModal({
       setIsConnected(true);
       socketInstance.emit("join_room", {
         roomId,
+        initialContent: initialContent || content || "",
         user: currentUserRef.current,
       });
     });
 
     socketInstance.on("room_joined", (data: { documentContent: string; users: UserPresence[]; messages: ChatMessage[] }) => {
-      if (data.documentContent) {
+      const isBoilerplate = data.documentContent && data.documentContent.includes("# Collaborative Research Paper");
+      if (data.documentContent && !isBoilerplate) {
         setContent(data.documentContent);
+        if (onDocumentUpdated) onDocumentUpdated(data.documentContent);
       } else if (initialContent) {
         setContent(initialContent);
         socketInstance.emit("document_update", {
@@ -87,6 +110,7 @@ export default function CollabEditorModal({
           content: initialContent,
           updatedBy: currentUserRef.current.name,
         });
+        if (onDocumentUpdated) onDocumentUpdated(initialContent);
       }
       setUsers(data.users || []);
       setMessages(data.messages || []);
@@ -99,6 +123,7 @@ export default function CollabEditorModal({
     socketInstance.on("document_sync", (data: { content: string; updatedBy: string }) => {
       setContent(data.content);
       setLastEditor(data.updatedBy);
+      if (onDocumentUpdated) onDocumentUpdated(data.content);
       setTimeout(() => setLastEditor(null), 3000);
     });
 
@@ -127,6 +152,7 @@ export default function CollabEditorModal({
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
+    if (onDocumentUpdated) onDocumentUpdated(newContent);
     if (socket && isConnected) {
       socket.emit("document_update", {
         roomId,
